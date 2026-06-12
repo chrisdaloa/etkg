@@ -11,9 +11,8 @@ from pathlib import Path
 from typing import Optional
 
 import requests as _requests
-from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.responses import StreamingResponse, HTMLResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import FastAPI, HTTPException, Depends, status, Request, Form
+from fastapi.responses import StreamingResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 import secrets
 
@@ -24,9 +23,10 @@ _WEB_ONLY_KEYS = {"proxy_source_url", "use_proxy_pool"}
 _lock = asyncio.Lock()
 
 app = FastAPI(title="ESET KeyGen Web")
-security = HTTPBasic(auto_error=False)
 
 WEB_PASSWORD = os.environ.get("ETKG_PASSWORD", "")
+# Random token valid for this server process; re-login required after restart
+_SESSION_TOKEN = secrets.token_hex(32)
 
 VALID_MODES = {"key", "account", "small-business-key", "advanced-key", "protecthub-account"}
 VALID_BROWSERS = {"auto-detect-browser", "chrome", "firefox", "waterfox", "edge"}
@@ -77,16 +77,90 @@ def _write_single_proxy(proxy: str) -> str:
 
 # ── auth ───────────────────────────────────────────────────────────────────────
 
-def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
+def check_auth(request: Request):
+    """For API endpoints — returns 401 JSON so the JS can redirect."""
     if not WEB_PASSWORD:
         return
-    if not credentials or not secrets.compare_digest(
-        credentials.password.encode(), WEB_PASSWORD.encode()
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            headers={"WWW-Authenticate": "Basic"},
-        )
+    token = request.cookies.get("session")
+    if not token or not secrets.compare_digest(token, _SESSION_TOKEN):
+        raise HTTPException(status_code=401, detail="Non autenticato")
+
+
+def check_auth_page(request: Request):
+    """For HTML pages — redirects to /login."""
+    if not WEB_PASSWORD:
+        return
+    token = request.cookies.get("session")
+    if not token or not secrets.compare_digest(token, _SESSION_TOKEN):
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER,
+                            headers={"Location": "/login"})
+
+
+_LOGIN_HTML = """<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESET KeyGen — Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0;
+           min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem;
+            padding: 2rem 2.5rem; width: 100%; max-width: 360px; }
+    h1 { font-size: 1.2rem; color: #60a5fa; margin-bottom: 0.25rem; }
+    .sub { font-size: 0.78rem; color: #475569; margin-bottom: 1.75rem; }
+    label { font-size: 0.7rem; color: #64748b; text-transform: uppercase;
+            letter-spacing: 0.07em; display: block; margin-bottom: 0.3rem; }
+    input[type="password"] {
+      width: 100%; background: #0f172a; color: #e2e8f0;
+      border: 1px solid #334155; padding: 0.5rem 0.75rem;
+      border-radius: 0.375rem; font-size: 0.9rem; outline: none;
+      margin-bottom: 1.25rem;
+    }
+    input[type="password"]:focus { border-color: #3b82f6; }
+    button { width: 100%; background: #3b82f6; color: #fff; border: none;
+             padding: 0.55rem; border-radius: 0.375rem; font-size: 0.9rem;
+             font-weight: 500; cursor: pointer; }
+    button:hover { background: #2563eb; }
+    .err { color: #f87171; font-size: 0.8rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>ESET KeyGen</h1>
+    <p class="sub">Inserisci la password per accedere</p>
+    {error}
+    <form method="post" action="/login">
+      <label for="pwd">Password</label>
+      <input type="password" id="pwd" name="password" autofocus autocomplete="current-password">
+      <button type="submit">Accedi</button>
+    </form>
+  </div>
+</body>
+</html>"""
+
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(error: str = ""):
+    msg = '<p class="err">Password errata.</p>' if error else ""
+    return _LOGIN_HTML.replace("{error}", msg)
+
+
+@app.post("/login")
+async def login_submit(password: str = Form(...)):
+    if WEB_PASSWORD and secrets.compare_digest(password, WEB_PASSWORD):
+        resp = RedirectResponse(url="/", status_code=303)
+        resp.set_cookie("session", _SESSION_TOKEN, httponly=True, samesite="lax")
+        return resp
+    return RedirectResponse(url="/login?error=1", status_code=303)
+
+
+@app.get("/logout")
+async def logout():
+    resp = RedirectResponse(url="/login", status_code=303)
+    resp.delete_cookie("session")
+    return resp
 
 
 # ── models ─────────────────────────────────────────────────────────────────────
@@ -115,7 +189,7 @@ class ProxyRefreshRequest(BaseModel):
 
 # ── routes ─────────────────────────────────────────────────────────────────────
 
-@app.get("/", response_class=HTMLResponse, dependencies=[Depends(check_auth)])
+@app.get("/", response_class=HTMLResponse, dependencies=[Depends(check_auth_page)])
 async def index():
     return (BASE_DIR / "templates" / "index.html").read_text(encoding="utf-8")
 

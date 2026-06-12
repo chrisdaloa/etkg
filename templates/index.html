@@ -125,7 +125,10 @@
 <body>
 <div class="layout">
 <div class="container">
-  <h1>ESET KeyGen</h1>
+  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.2rem">
+    <h1>ESET KeyGen</h1>
+    <a href="/logout" style="font-size:0.75rem;color:#475569;text-decoration:none;" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#475569'">Esci</a>
+  </div>
   <p class="subtitle">Genera trial key e account ESET via browser</p>
 
   <!-- Main settings -->
@@ -330,7 +333,9 @@
 
   async function loadConfig() {
     try {
-      const cfg = await fetch('/config').then(r => r.json());
+      const r = await fetch('/config');
+      if (r.status === 401) { window.location.href = '/login'; return; }
+      const cfg = await r.json();
       const set = (id, val) => { const el = document.getElementById(id); if (el) { if (el.type === 'checkbox') el.checked = !!val; else el.value = val ?? ''; } };
       set('mode',                    cfg.mode);
       set('browser',                 cfg.browser);
@@ -567,6 +572,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildConfig()),
       });
+      if (resp.status === 401) { window.location.href = '/login'; return; }
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ detail: resp.statusText }));
         throw new Error(err.detail || resp.statusText);
