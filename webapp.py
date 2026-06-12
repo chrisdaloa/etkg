@@ -1,5 +1,6 @@
 import asyncio
 import glob
+import json
 import os
 import random
 import re
@@ -18,6 +19,8 @@ import secrets
 
 ANSI_ESCAPE = re.compile(r'\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 BASE_DIR = Path(__file__).parent
+CONFIG_PATH = BASE_DIR / "eset-keygen-config.json"
+_WEB_ONLY_KEYS = {"proxy_source_url", "use_proxy_pool"}
 _lock = asyncio.Lock()
 
 app = FastAPI(title="ESET KeyGen Web")
@@ -139,6 +142,84 @@ async def proxies_status():
         "updated_at": _proxy_last_updated,
         "source_url": _proxy_source_url,
     }
+
+
+class WebConfig(BaseModel):
+    mode: str = "key"
+    browser: str = "chrome"
+    email_api: str = "emailfake"
+    repeat: int = 1
+    no_headless: bool = False
+    custom_browser_location: str = ""
+    custom_email_api: bool = False
+    skip_webdriver_menu: bool = True
+    skip_update_check: bool = True
+    disable_progress_bar: bool = True
+    disable_output_file: bool = False
+    output_file: str = ""
+    proxy_file: str = ""
+    disable_logging: bool = True
+    use_proxy_pool: bool = False
+    proxy_source_url: str = ""
+
+
+def _read_config() -> dict:
+    try:
+        return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _write_config(data: dict):
+    CONFIG_PATH.write_text(json.dumps(data, indent=4), encoding="utf-8")
+
+
+@app.get("/config", dependencies=[Depends(check_auth)])
+async def get_config():
+    raw = _read_config()
+    # Map main.py keys → WebConfig field names
+    return {
+        "mode":                    raw.get("Mode of operation", "key"),
+        "browser":                 raw.get("Browser", "chrome"),
+        "email_api":               raw.get("Email API", "emailfake"),
+        "repeat":                  raw.get("repeat", 1),
+        "no_headless":             raw.get("no_headless", False),
+        "custom_browser_location": raw.get("custom_browser_location", ""),
+        "custom_email_api":        raw.get("custom_email_api", False),
+        "skip_webdriver_menu":     raw.get("skip_webdriver_menu", True),
+        "skip_update_check":       raw.get("skip_update_check", True),
+        "disable_progress_bar":    raw.get("disable_progress_bar", True),
+        "disable_output_file":     raw.get("disable_output_file", False),
+        "output_file":             raw.get("output_file", ""),
+        "proxy_file":              raw.get("proxy_file", ""),
+        "disable_logging":         raw.get("disable_logging", True),
+        "use_proxy_pool":          raw.get("use_proxy_pool", False),
+        "proxy_source_url":        raw.get("proxy_source_url", ""),
+    }
+
+
+@app.post("/config", dependencies=[Depends(check_auth)])
+async def save_config(cfg: WebConfig):
+    raw = _read_config()
+    # Map WebConfig fields → main.py config keys
+    raw["Mode of operation"] = cfg.mode
+    raw["Browser"]           = cfg.browser
+    raw["Email API"]         = cfg.email_api
+    raw["repeat"]            = cfg.repeat
+    raw["no_headless"]             = cfg.no_headless
+    raw["custom_browser_location"] = cfg.custom_browser_location
+    raw["custom_email_api"]        = cfg.custom_email_api
+    raw["skip_webdriver_menu"]     = cfg.skip_webdriver_menu
+    raw["skip_update_check"]       = cfg.skip_update_check
+    raw["disable_progress_bar"]    = cfg.disable_progress_bar
+    raw["disable_output_file"]     = cfg.disable_output_file
+    raw["output_file"]             = cfg.output_file
+    raw["proxy_file"]              = cfg.proxy_file
+    raw["disable_logging"]         = cfg.disable_logging
+    raw["use_proxy_pool"]          = cfg.use_proxy_pool
+    raw["proxy_source_url"]        = cfg.proxy_source_url
+    _write_config(raw)
+    return {"ok": True}
 
 
 @app.post("/run", dependencies=[Depends(check_auth)])

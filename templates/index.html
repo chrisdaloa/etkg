@@ -184,10 +184,10 @@
     </div>
 
     <div class="section">
-      <div class="section-title">Proxy — Webshare</div>
+      <div class="section-title">Sorgente Proxy</div>
       <div class="fields">
         <div class="field grow">
-          <label>URL lista Webshare</label>
+          <label>URL lista proxy (Webshare, ProxyList, o qualsiasi URL che restituisce ip:porta:user:pass)</label>
           <input type="text" id="webshare_url" placeholder="https://proxy.webshare.io/api/v2/proxy/list/download/...">
         </div>
       </div>
@@ -224,6 +224,7 @@
   <!-- Run -->
   <div class="run-row">
     <button id="btn" onclick="run()">&#9654; Genera</button>
+    <button class="copy-btn" style="padding:0.4rem 0.9rem;" onclick="saveConfig(this)">&#128190; Salva impostazioni</button>
     <span id="status"></span>
   </div>
 
@@ -312,6 +313,59 @@
       use_proxy_pool:          document.getElementById('use_proxy_pool').checked,
     };
   }
+
+  function buildFullConfig() {
+    return {
+      ...buildConfig(),
+      proxy_source_url: document.getElementById('webshare_url').value.trim(),
+    };
+  }
+
+  async function loadConfig() {
+    try {
+      const cfg = await fetch('/config').then(r => r.json());
+      const set = (id, val) => { const el = document.getElementById(id); if (el) { if (el.type === 'checkbox') el.checked = !!val; else el.value = val ?? ''; } };
+      set('mode',                    cfg.mode);
+      set('browser',                 cfg.browser);
+      set('emailapi',                cfg.email_api);
+      set('repeat',                  cfg.repeat);
+      set('no_headless',             cfg.no_headless);
+      set('custom_browser_location', cfg.custom_browser_location);
+      set('custom_email_api',        cfg.custom_email_api);
+      set('skip_webdriver_menu',     cfg.skip_webdriver_menu);
+      set('skip_update_check',       cfg.skip_update_check);
+      set('disable_progress_bar',    cfg.disable_progress_bar);
+      set('disable_output_file',     cfg.disable_output_file);
+      set('output_file',             cfg.output_file);
+      set('proxy_file',              cfg.proxy_file);
+      set('disable_logging',         cfg.disable_logging);
+      set('use_proxy_pool',          cfg.use_proxy_pool);
+      if (cfg.proxy_source_url) {
+        set('webshare_url', cfg.proxy_source_url);
+        // auto-load proxies if URL is saved
+        document.getElementById('webshare_url').value = cfg.proxy_source_url;
+        await refreshProxies();
+      }
+    } catch { }
+  }
+
+  async function saveConfig(btn) {
+    try {
+      const resp = await fetch('/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildFullConfig()),
+      });
+      if (!resp.ok) throw new Error((await resp.json()).detail);
+      btn.textContent = '✓ Salvato';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '💾 Salva impostazioni'; btn.classList.remove('copied'); }, 1500);
+    } catch(e) {
+      alert('Errore salvataggio: ' + e.message);
+    }
+  }
+
+  loadConfig();
 
   async function refreshProxies() {
     const url = document.getElementById('webshare_url').value.trim();
