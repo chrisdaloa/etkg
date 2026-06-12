@@ -38,6 +38,35 @@ My [public channel with archives of my projects](https://t.me/rzc0d3r_official)
 </div>
 
 ---
+## ✨ Additional Features (this fork)
+
+This fork adds the following features on top of the original project:
+
+### Bug fixes
+- **Italian UI support** — all button text variants for the Italian ESET interface are recognised (`continua`, `termina per ora`, `finisci per ora`)
+- **Disabled button handling** — the click logic now waits for buttons to become enabled instead of throwing `ElementClickInterceptedException`; falls back to a JS click when an overlay intercepts the element
+
+### Web interface (`webapp.py`)
+A browser-based UI that lets you run the script from any device without a terminal.
+
+**Start it with:**
+```bash
+pip install fastapi "uvicorn[standard]"
+python3 webapp.py          # opens on http://0.0.0.0:8000
+# optional password protection:
+ETKG_PASSWORD=yourpassword python3 webapp.py
+```
+
+**Features:**
+- All CLI settings exposed as form controls (mode, browser, email API, repeat, headless, proxy file, output file, flags)
+- **Live log streaming** — output appears in real time via Server-Sent Events
+- **Result panel** — email, password, license name, key and expiry date highlighted at the end of each run
+- **Copy buttons** — one-click copy for log, individual fields (email / password / key) and the full result block
+- **Settings persistence** — "Save settings" writes all options to the existing `eset-keygen-config.json`; fields are pre-filled on next page load
+- **Proxy pool** — paste any proxy list URL (Webshare or other sources returning `ip:port:user:pass`); a random proxy is picked for each run; URL is saved to config
+- **Recent files sidebar** — shows the last 5 generated `.txt` key/account files with copy buttons per entry; refreshes automatically after each run
+
+---
 ## Project Status 
 - Current Status: Active
 
