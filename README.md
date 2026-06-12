@@ -49,6 +49,30 @@ This fork adds the following features on top of the original project:
 ### Web interface (`webapp.py`)
 A browser-based UI that lets you run the script from any device without a terminal.
 
+#### Option A — Docker (recommended, zero manual setup)
+
+Requires [Docker](https://docs.docker.com/engine/install/) with the Compose plugin.
+
+```bash
+git clone https://github.com/chrisdaloa/etkg.git
+cd etkg
+ETKG_PASSWORD=yourpassword docker compose up -d --build
+```
+
+Open `http://<SERVER-IP>:8000` in your browser.
+
+| Task | Command |
+|------|---------|
+| Update code | `git pull && docker compose restart` |
+| Rebuild image (after `requirements.txt` changes) | `docker compose up -d --build` |
+| View logs | `docker compose logs -f` |
+| Stop | `docker compose down` |
+
+The container uses **Chromium** (installed from apt, chromedriver version always in sync).
+All generated files (`ESET KEYS *.txt`, `eset-keygen-config.json`, `ESET-KeyGen.log`) are written to the project directory on the host via bind-mount and persist across restarts.
+
+#### Option B — Manual install
+
 **Install dependencies:**
 ```bash
 pip install fastapi "uvicorn[standard]" python-multipart
