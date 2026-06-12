@@ -37,6 +37,8 @@ _proxy_pool: list[str] = []
 _proxy_last_updated: float = 0.0
 _proxy_source_url: str = ""
 
+_current_proc: Optional[asyncio.subprocess.Process] = None
+
 
 # ── proxy helpers ──────────────────────────────────────────────────────────────
 
@@ -222,6 +224,15 @@ async def save_config(cfg: WebConfig):
     return {"ok": True}
 
 
+@app.post("/stop", dependencies=[Depends(check_auth)])
+async def stop_run():
+    global _current_proc
+    if _current_proc and _current_proc.returncode is None:
+        _current_proc.terminate()
+        return {"ok": True}
+    return {"ok": False, "detail": "Nessun processo in esecuzione"}
+
+
 @app.post("/run", dependencies=[Depends(check_auth)])
 async def run(config: RunConfig):
     if config.mode not in VALID_MODES:
@@ -275,18 +286,21 @@ async def run(config: RunConfig):
                 cmd.extend(["--proxy-file", config.proxy_file])
 
             try:
+                global _current_proc
                 proc = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.STDOUT,
                     cwd=str(BASE_DIR),
                 )
+                _current_proc = proc
                 async for raw in proc.stdout:
                     line = ANSI_ESCAPE.sub("", raw.decode("utf-8", errors="replace")).rstrip()
                     if line:
                         yield f"data: {line}\n\n"
                 await proc.wait()
             finally:
+                _current_proc = None
                 if tmp_proxy_file:
                     try:
                         os.unlink(tmp_proxy_file)

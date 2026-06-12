@@ -40,8 +40,8 @@
     .adv-toggle:hover { color: #60a5fa; }
     #adv-section { display: none; }
 
-    /* ── run button ── */
-    .run-row { display: flex; align-items: center; gap: 1rem; margin-top: 0.25rem; }
+    /* ── run / stop buttons ── */
+    .run-row { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.25rem; flex-wrap: wrap; }
     button#btn {
       background: #3b82f6; color: #fff; border: none;
       padding: 0.5rem 1.75rem; border-radius: 0.375rem;
@@ -49,6 +49,12 @@
     }
     button#btn:hover:not(:disabled) { background: #2563eb; }
     button#btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    button#stop-btn {
+      background: #dc2626; color: #fff; border: none;
+      padding: 0.5rem 1.25rem; border-radius: 0.375rem;
+      font-size: 0.9rem; font-weight: 500; cursor: pointer; display: none;
+    }
+    button#stop-btn:hover { background: #b91c1c; }
     #status { font-size: 0.78rem; color: #64748b; }
 
     /* ── log ── */
@@ -63,17 +69,23 @@
     .info { color: #38bdf8; }
     .warn { color: #fbbf24; }
 
-    /* ── result ── */
-    #result {
-      margin-top: 1rem; background: #0d1f12; border: 1px solid #166534;
-      border-radius: 0.5rem; padding: 1rem 1.25rem; display: none;
+    /* ── result cards ── */
+    #results-container { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+    .result-card {
+      border-radius: 0.5rem; padding: 1rem 1.25rem;
     }
-    #result h2 { font-size: 0.88rem; color: #4ade80; margin-bottom: 0.75rem; }
+    .result-card.success { background: #0d1f12; border: 1px solid #166534; }
+    .result-card.error   { background: #1c0a0a; border: 1px solid #7f1d1d; }
+    .result-card .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .result-card h2 { font-size: 0.88rem; margin-bottom: 0; }
+    .result-card.success h2 { color: #4ade80; }
+    .result-card.error   h2 { color: #f87171; }
     .kv { display: flex; gap: 0.5rem; margin-bottom: 0.35rem; font-size: 0.84rem; align-items: baseline; }
     .kv .k { color: #4b7a5e; min-width: 110px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
     .kv .v { color: #d1fae5; font-family: monospace; }
     .kv .v.key { color: #fbbf24; font-size: 1rem; font-weight: 700; letter-spacing: 0.08em; }
-    #error-box {
+    .error-text { font-family: monospace; font-size: 0.75rem; color: #fca5a5; white-space: pre-wrap; word-break: break-all; }
+    #conn-error {
       margin-top: 0.75rem; background: #1c0a0a; border: 1px solid #7f1d1d;
       border-radius: 0.375rem; padding: 0.75rem 1rem; font-size: 0.82rem;
       color: #fca5a5; display: none;
@@ -224,6 +236,7 @@
   <!-- Run -->
   <div class="run-row">
     <button id="btn" onclick="run()">&#9654; Genera</button>
+    <button id="stop-btn" onclick="stopRun()">&#9632; Stop</button>
     <button class="copy-btn" style="padding:0.4rem 0.9rem;" onclick="saveConfig(this)">&#128190; Salva impostazioni</button>
     <span id="status"></span>
   </div>
@@ -234,14 +247,8 @@
       <button class="copy-btn" onclick="copyLog(this)">Copia log</button>
     </div>
     <div id="log"></div>
-    <div id="error-box"></div>
-    <div id="result">
-      <div class="result-header">
-        <h2>&#10003; Risultato</h2>
-        <button class="copy-btn" onclick="copyResult(this)">Copia tutto</button>
-      </div>
-      <div id="result-content"></div>
-    </div>
+    <div id="conn-error"></div>
+    <div id="results-container"></div>
   </div>
 </div>
 
@@ -421,6 +428,10 @@
           <div class="file-card-body" id="card-body-${fi}">
             ${f.entries.length ? f.entries.map(e => `
               <div class="entry">
+                <div class="entry-row" style="margin-bottom:0.4rem">
+                  <span class="entry-label">Voce</span>
+                  <button class="copy-btn" onclick="copyEntry(this,${JSON.stringify(e)})">Copia tutto</button>
+                </div>
                 ${e.email    ? `<div class="entry-row"><span class="entry-label">Email</span><button class="copy-btn" onclick="copyText(this,${JSON.stringify(e.email)})">Copia</button></div><div class="entry-val">${esc(e.email)}</div>` : ''}
                 ${e.password ? `<div class="entry-row"><span class="entry-label">Password</span><button class="copy-btn" onclick="copyText(this,${JSON.stringify(e.password)})">Copia</button></div><div class="entry-val">${esc(e.password)}</div>` : ''}
                 ${e.license  ? `<div class="entry-row"><span class="entry-label">Licenza</span></div><div class="entry-val">${esc(e.license)}</div>` : ''}
@@ -451,38 +462,104 @@
   }
 
   function copyLog(btn) {
-    const text = document.getElementById('log').innerText;
+    copyText(btn, document.getElementById('log').innerText);
+  }
+
+  function copyEntry(btn, e) {
+    const lines = [
+      e.email    ? `Email: ${e.email}`       : '',
+      e.password ? `Password: ${e.password}` : '',
+      e.license  ? `Licenza: ${e.license}`   : '',
+      e.key      ? `Key: ${e.key}`           : '',
+      e.expiry   ? `Scadenza: ${e.expiry}`   : '',
+    ].filter(Boolean).join('\n');
+    copyText(btn, lines);
+  }
+
+  function copyCardFields(btn, cardId) {
+    const rows = document.querySelectorAll(`#${cardId} .kv`);
+    const text = [...rows].map(r => `${r.querySelector('.k').textContent}: ${r.querySelector('.v').textContent}`).join('\n');
     copyText(btn, text);
   }
 
-  function copyResult(btn) {
-    const fields = document.getElementById('result-content').querySelectorAll('.kv');
-    const lines = [...fields].map(row => {
-      const k = row.querySelector('.k').textContent;
-      const v = row.querySelector('.v').textContent;
-      return `${k}: ${v}`;
-    }).join('\n');
-    copyText(btn, lines);
+  async function stopRun() {
+    await fetch('/stop', { method: 'POST' });
+  }
+
+  function makeResultCard(index, fields, errorText) {
+    const id = `rc-${index}`;
+    const isErr = !!errorText;
+    const title = isErr ? `✗ Ripetizione ${index} — Errore` : `✓ Ripetizione ${index}`;
+    let inner = '';
+    if (isErr) {
+      inner = `<button class="copy-btn" onclick="copyText(this,${JSON.stringify(errorText)})">Copia errore</button>
+               <div class="error-text" style="margin-top:0.5rem">${esc(errorText)}</div>`;
+    } else {
+      const copyable = new Set(['Email', 'Password', 'Key']);
+      inner = Object.entries(fields).map(([k, v]) => {
+        const cpBtn = copyable.has(k)
+          ? `<button class="copy-btn" onclick="copyText(this,${JSON.stringify(v)})">Copia</button>`
+          : '';
+        return `<div class="kv"><span class="k">${esc(k)}</span><span class="v ${k==='Key'?'key':''}">${esc(v)}</span>${cpBtn}</div>`;
+      }).join('');
+    }
+    const card = document.createElement('div');
+    card.className = `result-card ${isErr ? 'error' : 'success'}`;
+    card.id = id;
+    card.innerHTML = `
+      <div class="result-header">
+        <h2>${title}</h2>
+        ${!isErr ? `<button class="copy-btn" onclick="copyCardFields(this,'${id}')">Copia tutto</button>` : ''}
+      </div>
+      ${inner}`;
+    document.getElementById('results-container').appendChild(card);
   }
 
   let reader = null;
 
   async function run() {
-    const btn      = document.getElementById('btn');
-    const log      = document.getElementById('log');
+    const btnRun  = document.getElementById('btn');
+    const btnStop = document.getElementById('stop-btn');
+    const log     = document.getElementById('log');
     const statusEl = document.getElementById('status');
-    const result   = document.getElementById('result');
-    const errBox   = document.getElementById('error-box');
+    const connErr  = document.getElementById('conn-error');
 
     if (reader) { reader.cancel(); reader = null; }
 
     log.innerHTML = '';
-    result.style.display = 'none';
-    errBox.style.display = 'none';
-    btn.disabled = true;
+    document.getElementById('results-container').innerHTML = '';
+    connErr.style.display = 'none';
+    btnRun.disabled = true;
+    btnStop.style.display = 'inline-block';
     statusEl.textContent = 'In esecuzione…';
 
-    let fullText = '';
+    // state machine
+    const SEP = '-'.repeat(49);
+    let inBlock = false, blockLines = [], inError = false, errorLines = [], resultIdx = 0;
+
+    function flushError() {
+      if (inError && errorLines.length) {
+        makeResultCard(++resultIdx, null, errorLines.join('\n'));
+        inError = false; errorLines = [];
+      }
+    }
+
+    function processLine(line) {
+      if (line === SEP) {
+        if (!inBlock) {
+          flushError();
+          inBlock = true; blockLines = [];
+        } else {
+          inBlock = false;
+          const fields = parseResult(blockLines.join('\n'));
+          if (Object.keys(fields).length) makeResultCard(++resultIdx, fields, null);
+          blockLines = [];
+        }
+        return;
+      }
+      if (inBlock) { blockLines.push(line); return; }
+      if (line.includes('[ FAILED ]') || inError) { inError = true; errorLines.push(line); }
+    }
 
     try {
       const resp = await fetch('/run', {
@@ -490,7 +567,6 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildConfig()),
       });
-
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ detail: resp.statusText }));
         throw new Error(err.detail || resp.statusText);
@@ -511,34 +587,24 @@
           const line = part.replace(/^data:\s?/, '');
           if (line === '__DONE__') {
             reader = null;
-            btn.disabled = false;
+            flushError();
+            btnRun.disabled = false;
+            btnStop.style.display = 'none';
             statusEl.textContent = 'Completato.';
             loadFiles();
-            const fields = parseResult(fullText);
-            if (Object.keys(fields).length) {
-              const copyable = new Set(['Email', 'Password', 'Key']);
-              document.getElementById('result-content').innerHTML = Object.entries(fields)
-                .map(([k, v]) => {
-                  const btn = copyable.has(k)
-                    ? `<button class="copy-btn" onclick="copyText(this,'${esc(v).replace(/'/g,"\\'")}')">Copia</button>`
-                    : '';
-                  return `<div class="kv"><span class="k">${esc(k)}</span><span class="v ${k==='Key'?'key':''}">${esc(v)}</span>${btn}</div>`;
-                })
-                .join('');
-              result.style.display = 'block';
-            }
             return;
           }
-          fullText += line + '\n';
           log.innerHTML += colorLine(line) + '\n';
           log.scrollTop = log.scrollHeight;
+          processLine(line);
         }
       }
     } catch (e) {
-      btn.disabled = false;
+      btnRun.disabled = false;
+      btnStop.style.display = 'none';
       statusEl.textContent = '';
-      errBox.textContent = e.message || 'Errore di connessione.';
-      errBox.style.display = 'block';
+      connErr.textContent = e.message || 'Errore di connessione.';
+      connErr.style.display = 'block';
     }
   }
 </script>
