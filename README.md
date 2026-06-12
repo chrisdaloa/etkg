@@ -49,22 +49,51 @@ This fork adds the following features on top of the original project:
 ### Web interface (`webapp.py`)
 A browser-based UI that lets you run the script from any device without a terminal.
 
-**Start it with:**
+**Install dependencies:**
 ```bash
-pip install fastapi "uvicorn[standard]"
-python3 webapp.py          # opens on http://0.0.0.0:8000
-# optional password protection:
-ETKG_PASSWORD=yourpassword python3 webapp.py
+pip install fastapi "uvicorn[standard]" python-multipart
+# or simply:
+pip install -r requirements.txt
+```
+
+**Start manually:**
+```bash
+uvicorn webapp:app --host 0.0.0.0 --port 8000
+# with password protection:
+ETKG_PASSWORD=yourpassword uvicorn webapp:app --host 0.0.0.0 --port 8000
+```
+
+**Run as a systemd service (auto-start on boot):**
+```ini
+# /etc/systemd/system/etkg-web.service
+[Unit]
+Description=ESET KeyGen Web Dashboard
+After=network.target
+
+[Service]
+WorkingDirectory=/root/etkg
+ExecStart=/root/etkg/venv/bin/uvicorn webapp:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+Environment="ETKG_PASSWORD=yourpassword"
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+systemctl daemon-reload && systemctl enable --now etkg-web
 ```
 
 **Features:**
+- **Login form** — optional password protection via `ETKG_PASSWORD` env var; custom dark-themed login page (no browser Basic Auth popup)
 - All CLI settings exposed as form controls (mode, browser, email API, repeat, headless, proxy file, output file, flags)
-- **Live log streaming** — output appears in real time via Server-Sent Events
-- **Result panel** — email, password, license name, key and expiry date highlighted at the end of each run
+- **Live log streaming** — output appears in real time via Server-Sent Events; **Stop** button to kill the running process
+- **Per-repetition result cards** — when repeat > 1, each iteration shows its own green (success) or red (error) card with copyable fields
 - **Copy buttons** — one-click copy for log, individual fields (email / password / key) and the full result block
 - **Settings persistence** — "Save settings" writes all options to the existing `eset-keygen-config.json`; fields are pre-filled on next page load
-- **Proxy pool** — paste any proxy list URL (Webshare or other sources returning `ip:port:user:pass`); a random proxy is picked for each run; URL is saved to config
-- **Recent files sidebar** — shows the last 5 generated `.txt` key/account files with copy buttons per entry; refreshes automatically after each run
+- **Proxy pool** — paste any proxy list URL (Webshare or other sources returning `ip:port:user:pass`); when repeat > 1, each iteration uses a different proxy automatically; URL is saved to config
+- **Recent files sidebar** — shows the last 5 generated `.txt` key/account files with per-field and per-entry copy buttons; refreshes automatically after each run
+- **Linux server / LXC ready** — runs headless by default; no display required
 
 ---
 ## Project Status 
