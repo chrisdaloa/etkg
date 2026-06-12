@@ -121,22 +121,31 @@ async def run(config: RunConfig):
     )
 
 
+_ENTRY_PATTERNS = [
+    ("email",    re.compile(r"Account Email:\s*(.+)", re.IGNORECASE)),
+    ("password", re.compile(r"Account Password:\s*(.+)", re.IGNORECASE)),
+    ("license",  re.compile(r"License Name:\s*(.+)", re.IGNORECASE)),
+    ("key",      re.compile(r"License Key:\s*(.+)", re.IGNORECASE)),
+    ("expiry",   re.compile(r"License Out Date:\s*(.+)", re.IGNORECASE)),
+]
+_SEPARATOR = "-" * 49
+_SCRIPT_FILE_RE = re.compile(r"ESET (KEYS|ACCOUNTS)\.txt$", re.IGNORECASE)
+
+
+def _is_script_output(text: str) -> bool:
+    return _SEPARATOR in text and any(p.search(text) for _, p in _ENTRY_PATTERNS)
+
+
 def _parse_entries(text: str) -> list[dict]:
     entries = []
-    for block in text.split('-' * 49):
+    for block in text.split(_SEPARATOR):
         block = block.strip()
         if not block:
             continue
         entry = {}
         for line in block.splitlines():
-            for key, pattern in [
-                ("email",    r"Account Email:\s*(.+)"),
-                ("password", r"Account Password:\s*(.+)"),
-                ("license",  r"License Name:\s*(.+)"),
-                ("key",      r"License Key:\s*(.+)"),
-                ("expiry",   r"License Out Date:\s*(.+)"),
-            ]:
-                m = re.match(pattern, line.strip(), re.IGNORECASE)
+            for key, pattern in _ENTRY_PATTERNS:
+                m = pattern.match(line.strip())
                 if m:
                     entry[key] = m.group(1).strip()
         if entry:
@@ -146,18 +155,20 @@ def _parse_entries(text: str) -> list[dict]:
 
 @app.get("/files", dependencies=[Depends(check_auth)])
 async def list_files():
-    pattern = str(BASE_DIR / "*.txt")
-    files = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)[:5]
+    all_txt = glob.glob(str(BASE_DIR / "*.txt"))
     result = []
-    for path in files:
+    for path in sorted(all_txt, key=os.path.getmtime, reverse=True):
+        if not _SCRIPT_FILE_RE.search(Path(path).name):
+            continue
         try:
             text = Path(path).read_text(encoding="utf-8", errors="replace")
-            result.append({
-                "filename": Path(path).name,
-                "entries": _parse_entries(text),
-            })
         except OSError:
-            pass
+            continue
+        if not _is_script_output(text):
+            continue
+        result.append({"filename": Path(path).name, "entries": _parse_entries(text)})
+        if len(result) == 5:
+            break
     return result
 
 
