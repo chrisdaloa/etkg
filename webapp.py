@@ -9,6 +9,7 @@ from fastapi.responses import StreamingResponse, HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel, Field
 import secrets
+import glob
 
 ANSI_ESCAPE = re.compile(r'\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 BASE_DIR = Path(__file__).parent
@@ -118,6 +119,46 @@ async def run(config: RunConfig):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+def _parse_entries(text: str) -> list[dict]:
+    entries = []
+    for block in text.split('-' * 49):
+        block = block.strip()
+        if not block:
+            continue
+        entry = {}
+        for line in block.splitlines():
+            for key, pattern in [
+                ("email",    r"Account Email:\s*(.+)"),
+                ("password", r"Account Password:\s*(.+)"),
+                ("license",  r"License Name:\s*(.+)"),
+                ("key",      r"License Key:\s*(.+)"),
+                ("expiry",   r"License Out Date:\s*(.+)"),
+            ]:
+                m = re.match(pattern, line.strip(), re.IGNORECASE)
+                if m:
+                    entry[key] = m.group(1).strip()
+        if entry:
+            entries.append(entry)
+    return entries
+
+
+@app.get("/files", dependencies=[Depends(check_auth)])
+async def list_files():
+    pattern = str(BASE_DIR / "*.txt")
+    files = sorted(glob.glob(pattern), key=os.path.getmtime, reverse=True)[:5]
+    result = []
+    for path in files:
+        try:
+            text = Path(path).read_text(encoding="utf-8", errors="replace")
+            result.append({
+                "filename": Path(path).name,
+                "entries": _parse_entries(text),
+            })
+        except OSError:
+            pass
+    return result
 
 
 if __name__ == "__main__":

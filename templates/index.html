@@ -7,7 +7,9 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 2rem 1rem; }
-    .container { max-width: 860px; margin: 0 auto; }
+    .layout { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; align-items: start; }
+    .container { min-width: 0; }
+    @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
     h1 { font-size: 1.4rem; color: #60a5fa; margin-bottom: 0.2rem; }
     .subtitle { font-size: 0.78rem; color: #475569; margin-bottom: 1.75rem; }
 
@@ -77,6 +79,23 @@
       color: #fca5a5; display: none;
     }
 
+    /* ── sidebar ── */
+    .sidebar { position: sticky; top: 1rem; }
+    .sidebar-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; }
+    .sidebar-title button { font-size: 0.68rem; }
+    .file-card { background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; margin-bottom: 0.75rem; overflow: hidden; }
+    .file-card-header { padding: 0.55rem 0.75rem; font-size: 0.75rem; color: #94a3b8; cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; }
+    .file-card-header:hover { background: #243044; }
+    .file-card-header .fname { color: #60a5fa; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-card-body { border-top: 1px solid #334155; }
+    .entry { padding: 0.6rem 0.75rem; border-bottom: 1px solid #1e293b; font-size: 0.75rem; }
+    .entry:last-child { border-bottom: none; }
+    .entry-row { display: flex; justify-content: space-between; align-items: center; gap: 0.3rem; margin-bottom: 0.2rem; }
+    .entry-label { color: #64748b; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
+    .entry-val { color: #e2e8f0; font-family: monospace; word-break: break-all; }
+    .entry-val.ekey { color: #fbbf24; font-weight: 700; }
+    .empty-sidebar { color: #334155; font-size: 0.78rem; text-align: center; padding: 1.5rem 0; }
+
     /* ── copy buttons ── */
     .copy-btn {
       background: #1e293b; color: #64748b; border: 1px solid #334155;
@@ -92,6 +111,7 @@
   </style>
 </head>
 <body>
+<div class="layout">
 <div class="container">
   <h1>ESET KeyGen</h1>
   <p class="subtitle">Genera trial key e account ESET via browser</p>
@@ -207,6 +227,17 @@
   </div>
 </div>
 
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-title">
+    <span>Ultimi file generati</span>
+    <button class="copy-btn" onclick="loadFiles()">&#8635; Aggiorna</button>
+  </div>
+  <div id="sidebar-content"><p class="empty-sidebar">Nessun file trovato</p></div>
+</div>
+
+</div><!-- end .layout -->
+
 <script>
   function toggleAdv(btn) {
     const sec = document.getElementById('adv-section');
@@ -263,6 +294,41 @@
       disable_logging:         document.getElementById('disable_logging').checked,
     };
   }
+
+  async function loadFiles() {
+    try {
+      const data = await fetch('/files').then(r => r.json());
+      const el = document.getElementById('sidebar-content');
+      if (!data.length) { el.innerHTML = '<p class="empty-sidebar">Nessun file trovato</p>'; return; }
+      el.innerHTML = data.map((f, fi) => `
+        <div class="file-card">
+          <div class="file-card-header" onclick="toggleCard(${fi})">
+            <span class="fname">${esc(f.filename)}</span>
+            <span id="card-arrow-${fi}">&#9660;</span>
+          </div>
+          <div class="file-card-body" id="card-body-${fi}">
+            ${f.entries.length ? f.entries.map(e => `
+              <div class="entry">
+                ${e.email    ? `<div class="entry-row"><span class="entry-label">Email</span><button class="copy-btn" onclick="copyText(this,${JSON.stringify(e.email)})">Copia</button></div><div class="entry-val">${esc(e.email)}</div>` : ''}
+                ${e.password ? `<div class="entry-row"><span class="entry-label">Password</span><button class="copy-btn" onclick="copyText(this,${JSON.stringify(e.password)})">Copia</button></div><div class="entry-val">${esc(e.password)}</div>` : ''}
+                ${e.license  ? `<div class="entry-row"><span class="entry-label">Licenza</span></div><div class="entry-val">${esc(e.license)}</div>` : ''}
+                ${e.key      ? `<div class="entry-row"><span class="entry-label">Key</span><button class="copy-btn" onclick="copyText(this,${JSON.stringify(e.key)})">Copia</button></div><div class="entry-val ekey">${esc(e.key)}</div>` : ''}
+                ${e.expiry   ? `<div class="entry-row"><span class="entry-label">Scadenza</span></div><div class="entry-val">${esc(e.expiry)}</div>` : ''}
+              </div>`).join('') : '<div class="entry" style="color:#475569">Nessuna voce</div>'}
+          </div>
+        </div>`).join('');
+    } catch { }
+  }
+
+  function toggleCard(fi) {
+    const body  = document.getElementById(`card-body-${fi}`);
+    const arrow = document.getElementById(`card-arrow-${fi}`);
+    const open  = body.style.display !== 'none';
+    body.style.display  = open ? 'none' : '';
+    arrow.innerHTML = open ? '&#9654;' : '&#9660;';
+  }
+
+  loadFiles();
 
   function copyText(btn, text) {
     navigator.clipboard.writeText(text).then(() => {
@@ -335,6 +401,7 @@
             reader = null;
             btn.disabled = false;
             statusEl.textContent = 'Completato.';
+            loadFiles();
             const fields = parseResult(fullText);
             if (Object.keys(fields).length) {
               const copyable = new Set(['Email', 'Password', 'Key']);
