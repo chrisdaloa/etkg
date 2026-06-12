@@ -4,6 +4,7 @@ import json
 import os
 import random
 import re
+import shutil
 import sys
 import tempfile
 import time
@@ -31,6 +32,20 @@ _SESSION_TOKEN = secrets.token_hex(32)
 VALID_MODES = {"key", "account", "small-business-key", "advanced-key", "protecthub-account"}
 VALID_BROWSERS = {"auto-detect-browser", "chrome", "firefox", "waterfox", "edge"}
 VALID_EMAIL_APIS = {"guerrillamail", "1secmail", "mailticking", "fakemail", "inboxes", "emailfake", "incognitomail"}
+
+BROWSER_CANDIDATES = {
+    "chrome":   ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"],
+    "firefox":  ["firefox"],
+    "waterfox": ["waterfox"],
+    "edge":     ["microsoft-edge", "microsoft-edge-stable"],
+}
+BROWSER_LABELS = {
+    "chrome":              "Google Chrome / Chromium",
+    "firefox":             "Mozilla Firefox",
+    "waterfox":            "Waterfox",
+    "edge":                "Microsoft Edge",
+    "auto-detect-browser": "Auto-detect",
+}
 
 # In-memory proxy pool: list of "scheme:host:port:user:pass" strings
 _proxy_pool: list[str] = []
@@ -248,6 +263,16 @@ def _read_config() -> dict:
 
 def _write_config(data: dict):
     CONFIG_PATH.write_text(json.dumps(data, indent=4), encoding="utf-8")
+
+
+@app.get("/browsers", dependencies=[Depends(check_auth)])
+def get_browsers():
+    found = []
+    for value, bins in BROWSER_CANDIDATES.items():
+        if any(shutil.which(b) for b in bins):
+            found.append({"value": value, "label": BROWSER_LABELS[value]})
+    found.append({"value": "auto-detect-browser", "label": BROWSER_LABELS["auto-detect-browser"]})
+    return found
 
 
 @app.get("/config", dependencies=[Depends(check_auth)])

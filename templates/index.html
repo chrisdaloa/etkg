@@ -176,13 +176,7 @@
       </div>
       <div class="field grow">
         <label>Browser</label>
-        <select id="browser">
-          <option value="chrome">Google Chrome</option>
-          <option value="firefox">Mozilla Firefox</option>
-          <option value="waterfox">Waterfox</option>
-          <option value="edge">Microsoft Edge</option>
-          <option value="auto-detect-browser">Auto-detect</option>
-        </select>
+        <select id="browser"></select>
       </div>
       <div class="field grow">
         <label>Email API</label>
@@ -497,6 +491,23 @@
 </div>
 
 <script>
+  async function loadBrowsers() {
+    const sel = document.getElementById('browser');
+    try {
+      const list = await fetch('/browsers').then(r => r.json());
+      sel.innerHTML = list.map(b =>
+        `<option value="${b.value}">${b.label}</option>`
+      ).join('');
+    } catch {
+      sel.innerHTML = `
+        <option value="chrome">Google Chrome</option>
+        <option value="firefox">Mozilla Firefox</option>
+        <option value="waterfox">Waterfox</option>
+        <option value="edge">Microsoft Edge</option>
+        <option value="auto-detect-browser">Auto-detect</option>`;
+    }
+  }
+
   function toggleAdv(btn) {
     const sec = document.getElementById('adv-section');
     const open = sec.style.display === 'block';
@@ -621,7 +632,7 @@
     }
   }
 
-  loadConfig();
+  loadBrowsers().then(() => loadConfig());
 
   async function refreshProxies() {
     const url = document.getElementById('webshare_url').value.trim();
