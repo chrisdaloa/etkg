@@ -95,6 +95,68 @@ systemctl daemon-reload && systemctl enable --now etkg-web
 - **Recent files sidebar** — shows the last 5 generated `.txt` key/account files with per-field and per-entry copy buttons; refreshes automatically after each run
 - **Linux server / LXC ready** — runs headless by default; no display required
 
+### Reinstallation on a new Linux machine
+
+Complete steps to set up this fork from scratch on a new Linux server or LXC container.
+
+**1. Clone the fork**
+```bash
+git clone https://github.com/chrisdaloa/etkg.git
+cd etkg
+```
+
+**2. Install Python dependencies**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+**3. Install Chrome or Chromium**
+```bash
+# Google Chrome
+wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+apt install -y /tmp/chrome.deb
+
+# or Chromium
+apt install -y chromium chromium-driver
+```
+
+**4. Install system libraries (headless server / LXC)**
+```bash
+apt install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+  libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2
+```
+
+**5. Configure the systemd service (auto-start on boot)**
+```bash
+nano /etc/systemd/system/etkg-web.service
+```
+```ini
+[Unit]
+Description=ESET KeyGen Web Dashboard
+After=network.target
+
+[Service]
+WorkingDirectory=/root/etkg
+ExecStart=/root/etkg/venv/bin/uvicorn webapp:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+Environment="ETKG_PASSWORD=yourpassword"
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+systemctl daemon-reload && systemctl enable --now etkg-web
+```
+
+**6. Verify**
+
+Open `http://<SERVER-IP>:8000` in your browser.
+
+> **Note:** `eset-keygen-config.json` (saved settings) is not tracked by git. Copy it manually from the old installation if you want to preserve your configuration.
+
 ---
 ## Project Status 
 - Current Status: Active
