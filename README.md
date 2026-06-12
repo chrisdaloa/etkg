@@ -142,6 +142,41 @@ It will ask the number of accounts, keys to be generated.
 2. [How to install Chrome on Linux](https://support.google.com/chrome/answer/95346?hl=en&co=GENIE.Platform%3DDesktop#zippy=%2Clinux)
 3. [How to install Chrome on Mac](https://support.google.com/chrome/answer/95346?hl=en&co=GENIE.Platform%3DDesktop#zippy=%2Clinux%2Cmac)
 
+##### Manual installation on Linux (Debian/Ubuntu/LXC)
+
+**Google Chrome:**
+```bash
+wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+apt install -y /tmp/chrome.deb
+# verify
+google-chrome --version
+```
+
+**Chromium (open-source build, no Google account required):**
+```bash
+# Debian / Ubuntu
+apt install -y chromium chromium-driver
+
+# If chromium-driver is not available separately:
+apt install -y chromium-browser
+# verify
+chromium --version   # or: chromium-browser --version
+```
+
+After installation, set the browser path in the advanced settings if it differs from the default:
+
+| Browser | Typical path |
+|---------|-------------|
+| Google Chrome | `/usr/bin/google-chrome` |
+| Chromium (Debian) | `/usr/bin/chromium` |
+| Chromium (Ubuntu) | `/usr/bin/chromium-browser` |
+
+> **Linux server / LXC tip:** if Chrome fails to start, install the required system libraries:
+> ```bash
+> apt install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+>   libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2
+> ```
+
 #### Mozilla Firefox (fully supports)
 1. [How to install Firefox on Windows](https://support.mozilla.org/en-US/kb/how-install-firefox-windows)
 2. [How to Install Firefox on Linux](https://support.mozilla.org/en-US/kb/install-firefox-linux)
