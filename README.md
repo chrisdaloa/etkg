@@ -38,6 +38,35 @@ My [public channel with archives of my projects](https://t.me/rzc0d3r_official)
 </div>
 
 ---
+## 🐳 Quick Start (Docker)
+
+The fastest way to get the web dashboard running on a Linux server — no manual Python, Chrome or library setup required.
+
+### 1. Install Docker (Debian / Ubuntu)
+```bash
+curl -fsSL https://get.docker.com | sh
+```
+
+### 2. Clone and start
+```bash
+git clone https://github.com/chrisdaloa/etkg.git
+cd etkg
+ETKG_PASSWORD=yourpassword docker compose up -d --build
+```
+
+Open `http://<SERVER-IP>:8000` in your browser and log in with the password you set.
+
+### Common commands
+| Task | Command |
+|------|---------|
+| Update to latest code | `git pull && docker compose restart` |
+| Rebuild image (after `requirements.txt` changes) | `docker compose up -d --build` |
+| View live logs | `docker compose logs -f` |
+| Stop | `docker compose down` |
+
+> Generated files (`ESET KEYS *.txt`, `eset-keygen-config.json`) are saved in the project directory on the host and survive restarts and updates.
+
+---
 ## ✨ Additional Features (this fork)
 
 This fork adds the following features on top of the original project:
