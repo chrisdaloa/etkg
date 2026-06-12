@@ -184,6 +184,23 @@
     </div>
 
     <div class="section">
+      <div class="section-title">Proxy — Webshare</div>
+      <div class="fields">
+        <div class="field grow">
+          <label>URL lista Webshare</label>
+          <input type="text" id="webshare_url" placeholder="https://proxy.webshare.io/api/v2/proxy/list/download/...">
+        </div>
+      </div>
+      <div style="margin-top:0.6rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+        <button class="copy-btn" style="padding:0.3rem 0.75rem;" onclick="refreshProxies()">&#8635; Carica proxy</button>
+        <span id="proxy-status" style="font-size:0.75rem; color:#64748b;">Nessun proxy caricato</span>
+      </div>
+      <div class="checks" style="margin-top:0.6rem">
+        <label class="check"><input type="checkbox" id="use_proxy_pool"> Usa proxy pool (random ad ogni run)</label>
+      </div>
+    </div>
+
+    <div class="section">
       <div class="section-title">Output</div>
       <div class="fields">
         <div class="field grow">
@@ -292,8 +309,49 @@
       output_file:             document.getElementById('output_file').value.trim(),
       proxy_file:              document.getElementById('proxy_file').value.trim(),
       disable_logging:         document.getElementById('disable_logging').checked,
+      use_proxy_pool:          document.getElementById('use_proxy_pool').checked,
     };
   }
+
+  async function refreshProxies() {
+    const url = document.getElementById('webshare_url').value.trim();
+    if (!url) { alert('Inserisci prima l\'URL Webshare'); return; }
+    const statusEl = document.getElementById('proxy-status');
+    statusEl.textContent = 'Caricamento…';
+    try {
+      const resp = await fetch('/proxies/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        throw new Error(err.detail);
+      }
+      const data = await resp.json();
+      const d = new Date(data.updated_at * 1000);
+      statusEl.textContent = `✓ ${data.count} proxy caricati (${d.toLocaleTimeString()})`;
+      statusEl.style.color = '#4ade80';
+    } catch(e) {
+      statusEl.textContent = `Errore: ${e.message}`;
+      statusEl.style.color = '#f87171';
+    }
+  }
+
+  async function loadProxyStatus() {
+    try {
+      const data = await fetch('/proxies/status').then(r => r.json());
+      if (data.count > 0) {
+        const d = new Date(data.updated_at * 1000);
+        const el = document.getElementById('proxy-status');
+        el.textContent = `✓ ${data.count} proxy caricati (${d.toLocaleTimeString()})`;
+        el.style.color = '#4ade80';
+        if (data.source_url) document.getElementById('webshare_url').value = data.source_url;
+      }
+    } catch { }
+  }
+
+  loadProxyStatus();
 
   async function loadFiles() {
     try {
