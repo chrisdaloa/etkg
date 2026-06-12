@@ -35,7 +35,11 @@ cd etkg
 ETKG_PASSWORD=yourpassword docker compose up -d --build
 ```
 
-Open `http://<SERVER-IP>:8000` in your browser and log in with the password you set.
+> **Password is optional.** If you omit `ETKG_PASSWORD=...`, the dashboard starts without authentication and is accessible to anyone who can reach port 8000. Only skip it if the server is on a private/trusted network.
+>
+> Without password: `docker compose up -d --build`
+
+Open `http://<SERVER-IP>:8000` in your browser.
 
 ### Common commands
 | Task | Command |
@@ -46,6 +50,20 @@ Open `http://<SERVER-IP>:8000` in your browser and log in with the password you 
 | Stop | `docker compose down` |
 
 > Generated files (`ESET KEYS *.txt`, `eset-keygen-config.json`) are saved in the project directory on the host and survive restarts and updates.
+
+### Deploy via Portainer
+
+If you manage containers with [Portainer](https://www.portainer.io/), you can deploy directly from the GitHub repository without cloning manually.
+
+1. **Stacks → Add Stack**
+2. **Build method**: Git Repository
+3. **Repository URL**: `https://github.com/chrisdaloa/etkg`
+4. **Repository reference**: `refs/heads/main`
+5. **Compose path**: `docker-compose.yml`
+6. **Environment variables**: add `ETKG_PASSWORD` = `yourpassword` (optional — leave empty for no auth)
+7. **Deploy the stack**
+
+To update after a `git push`: Stacks → `etkg` → **Pull and redeploy**.
 
 ---
 ## ✨ Additional Features (this fork)
@@ -68,6 +86,8 @@ git clone https://github.com/chrisdaloa/etkg.git
 cd etkg
 ETKG_PASSWORD=yourpassword docker compose up -d --build
 ```
+
+> **Password is optional.** Omit `ETKG_PASSWORD=...` to run without authentication.
 
 Open `http://<SERVER-IP>:8000` in your browser.
 
