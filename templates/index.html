@@ -121,9 +121,24 @@
     .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
     .result-header h2 { margin-bottom: 0; }
 
-    /* ── faq ── */
-    #faq-section { display: none; margin-top: 2rem; }
-    .faq-title { font-size: 1rem; color: #60a5fa; margin-bottom: 1rem; }
+    /* ── faq modal ── */
+    #faq-overlay {
+      display: none; position: fixed; inset: 0; z-index: 999;
+      background: rgba(0,0,0,0.65); backdrop-filter: blur(2px);
+      align-items: center; justify-content: center;
+    }
+    #faq-overlay.open { display: flex; }
+    #faq-modal {
+      background: #0f172a; border: 1px solid #1e293b; border-radius: 0.75rem;
+      width: min(720px, 94vw); max-height: 85vh;
+      display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+    }
+    #faq-modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid #1e293b; flex-shrink: 0;
+    }
+    .faq-title { font-size: 1rem; color: #60a5fa; font-weight: 600; margin: 0; }
+    #faq-modal-body { overflow-y: auto; padding: 0.25rem 1.25rem 1.25rem; }
     .faq-item { border-bottom: 1px solid #1e293b; }
     .faq-q {
       width: 100%; background: none; border: none; text-align: left;
@@ -289,13 +304,14 @@
 
 </div><!-- end .layout -->
 
-<!-- FAQ / Manuale Utente -->
-<div id="faq-section">
-  <div class="container" style="margin-top:1.5rem;padding-bottom:2rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+<!-- FAQ / Manuale Utente — modal overlay -->
+<div id="faq-overlay" onclick="if(event.target===this)toggleFaq()">
+  <div id="faq-modal">
+    <div id="faq-modal-header">
       <div class="faq-title">Manuale Utente / FAQ</div>
-      <button onclick="toggleFaq()" style="background:none;border:none;color:#475569;cursor:pointer;font-size:1.1rem;line-height:1" title="Chiudi">✕</button>
+      <button onclick="toggleFaq()" style="background:none;border:none;color:#475569;cursor:pointer;font-size:1.2rem;line-height:1;padding:0.2rem 0.4rem" title="Chiudi">✕</button>
     </div>
+    <div id="faq-modal-body">
 
     <div class="faq-item">
       <button class="faq-q" onclick="toggleFaqItem(this)">
@@ -475,6 +491,32 @@
       </div>
     </div>
 
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaqItem(this)">
+        Il menu Browser mostra solo alcune opzioni — è normale?
+        <span class="faq-arrow">&#9656;</span>
+      </button>
+      <div class="faq-a">
+        Sì, è il comportamento corretto. La dashboard rileva automaticamente i browser installati sul server e mostra <strong>solo quelli disponibili</strong>. Se manca Chrome o Chromium dall'elenco, significa che non è installato nel PATH di sistema.<br><br>
+        Per aggiungere un browser all'elenco installalo sul server (vedi la sezione <em>"Chrome non si avvia su Linux / LXC"</em>) oppure specifica manualmente il percorso del binario nel campo <em>Percorso browser custom</em> nelle impostazioni avanzate.<br><br>
+        <strong>Auto-detect</strong> è sempre disponibile: lascia decidere allo script quale browser usare in base a quanto trova nel sistema.
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaqItem(this)">
+        Come riavvio il servizio dopo un aggiornamento?
+        <span class="faq-arrow">&#9656;</span>
+      </button>
+      <div class="faq-a">
+        Dal terminale, nella directory del progetto:<br>
+        <code>git pull &amp;&amp; systemctl restart etkg-web</code><br><br>
+        Per vedere i log in tempo reale subito dopo il riavvio:<br>
+        <code>git pull &amp;&amp; systemctl restart etkg-web &amp;&amp; journalctl -u etkg-web -f</code><br><br>
+        <code>Ctrl+C</code> per uscire dal log.
+      </div>
+    </div>
+
     <div class="faq-item" style="border-bottom:none">
       <button class="faq-q" onclick="toggleFaqItem(this)">
         Come aggiorno il mio fork con le modifiche del progetto originale?
@@ -487,8 +529,9 @@
       </div>
     </div>
 
-  </div>
-</div>
+    </div><!-- end faq-modal-body -->
+  </div><!-- end faq-modal -->
+</div><!-- end faq-overlay -->
 
 <script>
   async function loadBrowsers() {
@@ -516,10 +559,12 @@
   }
 
   function toggleFaq() {
-    const sec = document.getElementById('faq-section');
-    sec.style.display = sec.style.display === 'block' ? 'none' : 'block';
-    if (sec.style.display === 'block') sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('faq-overlay').classList.toggle('open');
   }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.getElementById('faq-overlay').classList.remove('open');
+  });
 
   function toggleFaqItem(btn) {
     const answer = btn.nextElementSibling;
