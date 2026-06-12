@@ -246,66 +246,88 @@ async def run(config: RunConfig):
     if config.use_proxy_pool and not _proxy_pool:
         raise HTTPException(status_code=400, detail="Pool proxy vuoto — aggiorna prima la lista da Webshare.")
 
+    def _build_base_cmd() -> list[str]:
+        cmd = [sys.executable, str(BASE_DIR / "main.py")]
+        cmd.append(f"--{config.mode}")
+        cmd.append(f"--{config.browser}")
+        cmd.extend(["--email-api", config.email_api])
+        cmd.append("--no-logo")
+        if config.no_headless:
+            cmd.append("--no-headless")
+        if config.custom_browser_location:
+            cmd.extend(["--custom-browser-location", config.custom_browser_location])
+        if config.custom_email_api:
+            cmd.append("--custom-email-api")
+        if config.skip_webdriver_menu:
+            cmd.append("--skip-webdriver-menu")
+        if config.skip_update_check:
+            cmd.append("--skip-update-check")
+        if config.disable_progress_bar:
+            cmd.append("--disable-progress-bar")
+        if config.disable_output_file:
+            cmd.append("--disable-output-file")
+        if config.output_file:
+            cmd.extend(["--output-file", config.output_file])
+        if config.disable_logging:
+            cmd.append("--disable-logging")
+        return cmd
+
+    async def _run_once(cmd: list[str]):
+        global _current_proc
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            cwd=str(BASE_DIR),
+        )
+        _current_proc = proc
+        async for raw in proc.stdout:
+            line = ANSI_ESCAPE.sub("", raw.decode("utf-8", errors="replace")).rstrip()
+            if line:
+                yield f"data: {line}\n\n"
+        await proc.wait()
+        _current_proc = None
+
     async def stream():
         async with _lock:
-            tmp_proxy_file = None
-            cmd = [sys.executable, str(BASE_DIR / "main.py")]
-            cmd.append(f"--{config.mode}")
-            cmd.append(f"--{config.browser}")
-            cmd.extend(["--email-api", config.email_api])
-            cmd.append("--no-logo")
-
-            if config.repeat > 1:
-                cmd.extend(["--repeat", str(config.repeat)])
-            if config.no_headless:
-                cmd.append("--no-headless")
-            if config.custom_browser_location:
-                cmd.extend(["--custom-browser-location", config.custom_browser_location])
-            if config.custom_email_api:
-                cmd.append("--custom-email-api")
-            if config.skip_webdriver_menu:
-                cmd.append("--skip-webdriver-menu")
-            if config.skip_update_check:
-                cmd.append("--skip-update-check")
-            if config.disable_progress_bar:
-                cmd.append("--disable-progress-bar")
-            if config.disable_output_file:
-                cmd.append("--disable-output-file")
-            if config.output_file:
-                cmd.extend(["--output-file", config.output_file])
-            if config.disable_logging:
-                cmd.append("--disable-logging")
-
-            if config.use_proxy_pool and _proxy_pool:
-                proxy = random.choice(_proxy_pool)
-                tmp_proxy_file = _write_single_proxy(proxy)
-                cmd.extend(["--proxy-file", tmp_proxy_file])
-                host = proxy.split(":")[1]
-                yield f"data: [PROXY] Usando proxy: {host}\n\n"
-            elif config.proxy_file:
-                cmd.extend(["--proxy-file", config.proxy_file])
+            # When proxy pool is active with repeat > 1, run N separate subprocesses
+            # so each iteration gets a fresh, distinct proxy.
+            use_pool = config.use_proxy_pool and bool(_proxy_pool)
+            iterations = config.repeat if use_pool else 1
+            pool_snapshot = list(_proxy_pool) if use_pool else []
+            last_proxy: Optional[str] = None
 
             try:
-                global _current_proc
-                proc = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT,
-                    cwd=str(BASE_DIR),
-                )
-                _current_proc = proc
-                async for raw in proc.stdout:
-                    line = ANSI_ESCAPE.sub("", raw.decode("utf-8", errors="replace")).rstrip()
-                    if line:
-                        yield f"data: {line}\n\n"
-                await proc.wait()
+                for i in range(iterations):
+                    tmp_proxy_file = None
+                    cmd = _build_base_cmd()
+
+                    if use_pool:
+                        # Pick a proxy different from the previous one
+                        candidates = [p for p in pool_snapshot if p != last_proxy] or pool_snapshot
+                        proxy = random.choice(candidates)
+                        last_proxy = proxy
+                        tmp_proxy_file = _write_single_proxy(proxy)
+                        cmd.extend(["--proxy-file", tmp_proxy_file])
+                        host = proxy.split(":")[1]
+                        yield f"data: [PROXY] Ripetizione {i+1}/{iterations} — proxy: {host}\n\n"
+                    else:
+                        if config.repeat > 1:
+                            cmd.extend(["--repeat", str(config.repeat)])
+                        if config.proxy_file:
+                            cmd.extend(["--proxy-file", config.proxy_file])
+
+                    try:
+                        async for chunk in _run_once(cmd):
+                            yield chunk
+                    finally:
+                        if tmp_proxy_file:
+                            try:
+                                os.unlink(tmp_proxy_file)
+                            except OSError:
+                                pass
             finally:
                 _current_proc = None
-                if tmp_proxy_file:
-                    try:
-                        os.unlink(tmp_proxy_file)
-                    except OSError:
-                        pass
 
             yield "data: __DONE__\n\n"
 

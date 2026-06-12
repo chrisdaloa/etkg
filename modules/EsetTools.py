@@ -43,7 +43,7 @@ class EsetRegister(object):
             time.sleep(1) # Once pressed, you have to wait a little while. If code do not do this, the site does not count the acceptance of cookies
         else:
             logging.info('Cookies were not bypassed (it doesn\'t affect the algorithm, I think :D)')
-            console_log("Cookies were not bypassed (it doesn't affect the algorithm, I think :D)", ERROR, silent_mode=SILENT_MODE)
+            console_log("Cookies were not bypassed (it doesn't affect the algorithm, I think :D)", WARN, silent_mode=SILENT_MODE)
 
         exec_js(f"return {GET_EBID}('email')").send_keys(self.email_obj.email)
         uCE(self.driver, f"return {CLICK_WITH_BOOL}({DEFINE_GET_EBAV_FUNCTION}('button', 'data-label', 'register-continue-button'))")
