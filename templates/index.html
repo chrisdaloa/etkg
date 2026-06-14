@@ -102,9 +102,10 @@
     .file-card-body { border-top: 1px solid #334155; }
     .entry { padding: 0.6rem 0.75rem; border-bottom: 1px solid #1e293b; font-size: 0.75rem; }
     .entry:last-child { border-bottom: none; }
-    .entry-row { display: flex; justify-content: space-between; align-items: center; gap: 0.3rem; margin-bottom: 0.2rem; }
+    .entry-row { display: flex; align-items: baseline; gap: 0.3rem; margin-bottom: 0.2rem; }
     .entry-label { color: #64748b; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
-    .entry-val { color: #e2e8f0; font-family: monospace; word-break: break-all; }
+    .entry-val { color: #e2e8f0; font-family: monospace; word-break: break-all; flex: 1; }
+    .entry-val-wrap { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.2rem; }
     .entry-val.ekey { color: #fbbf24; font-weight: 700; }
     .empty-sidebar { color: #334155; font-size: 0.78rem; text-align: center; padding: 1.5rem 0; }
 
@@ -116,6 +117,13 @@
     }
     .copy-btn:hover { color: #e2e8f0; border-color: #64748b; }
     .copy-btn.copied { color: #4ade80; border-color: #4ade80; }
+    .copy-icon-btn {
+      background: none; border: none; padding: 0; cursor: pointer;
+      color: #475569; display: inline-flex; align-items: center; flex-shrink: 0;
+      transition: color 0.15s;
+    }
+    .copy-icon-btn:hover { color: #94a3b8; }
+    .copy-icon-btn.copied { color: #4ade80; }
     .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; }
     .log-header span { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #334155; }
     .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
@@ -719,6 +727,9 @@
 
   loadProxyStatus();
 
+  const COPY_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+  const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
   async function loadFiles() {
     try {
       const data = await fetch('/files').then(r => r.json());
@@ -733,15 +744,11 @@
           <div class="file-card-body" id="card-body-${fi}">
             ${f.entries.length ? f.entries.map(e => `
               <div class="entry">
-                <div class="entry-row" style="margin-bottom:0.4rem">
-                  <span class="entry-label">Voce</span>
-                  <button class="copy-btn" onclick="copyEntry(this,${JSON.stringify(e)})">Copia tutto</button>
-                </div>
-                ${e.email    ? `<div class="entry-row"><span class="entry-label">Email</span><button class="copy-btn" onclick="copyText(this,${JSON.stringify(e.email)})">Copia</button></div><div class="entry-val">${esc(e.email)}</div>` : ''}
-                ${e.password ? `<div class="entry-row"><span class="entry-label">Password</span><button class="copy-btn" onclick="copyText(this,${JSON.stringify(e.password)})">Copia</button></div><div class="entry-val">${esc(e.password)}</div>` : ''}
-                ${e.license  ? `<div class="entry-row"><span class="entry-label">Licenza</span></div><div class="entry-val">${esc(e.license)}</div>` : ''}
-                ${e.key      ? `<div class="entry-row"><span class="entry-label">Key</span><button class="copy-btn" onclick="copyText(this,${JSON.stringify(e.key)})">Copia</button></div><div class="entry-val ekey">${esc(e.key)}</div>` : ''}
-                ${e.expiry   ? `<div class="entry-row"><span class="entry-label">Scadenza</span></div><div class="entry-val">${esc(e.expiry)}</div>` : ''}
+                ${e.email    ? `<div class="entry-row"><span class="entry-label">Email</span></div><div class="entry-val-wrap"><span class="entry-val">${esc(e.email)}</span><button class="copy-icon-btn" title="Copia email" onclick="copyIcon(this,${JSON.stringify(e.email)})">${COPY_SVG}</button></div>` : ''}
+                ${e.password ? `<div class="entry-row"><span class="entry-label">Password</span></div><div class="entry-val-wrap"><span class="entry-val">${esc(e.password)}</span><button class="copy-icon-btn" title="Copia password" onclick="copyIcon(this,${JSON.stringify(e.password)})">${COPY_SVG}</button></div>` : ''}
+                ${e.license  ? `<div class="entry-row"><span class="entry-label">Licenza</span></div><div class="entry-val-wrap"><span class="entry-val">${esc(e.license)}</span></div>` : ''}
+                ${e.key      ? `<div class="entry-row"><span class="entry-label">Key</span></div><div class="entry-val-wrap"><span class="entry-val ekey">${esc(e.key)}</span><button class="copy-icon-btn" title="Copia chiave" onclick="copyIcon(this,${JSON.stringify(e.key)})">${COPY_SVG}</button></div>` : ''}
+                ${e.expiry   ? `<div class="entry-row"><span class="entry-label">Scadenza</span></div><div class="entry-val-wrap"><span class="entry-val">${esc(e.expiry)}</span></div>` : ''}
               </div>`).join('') : '<div class="entry" style="color:#475569">Nessuna voce</div>'}
           </div>
         </div>`).join('');
@@ -757,6 +764,14 @@
   }
 
   loadFiles();
+
+  function copyIcon(btn, text) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.innerHTML = CHECK_SVG;
+      btn.classList.add('copied');
+      setTimeout(() => { btn.innerHTML = COPY_SVG; btn.classList.remove('copied'); }, 1500);
+    });
+  }
 
   function copyText(btn, text) {
     navigator.clipboard.writeText(text).then(() => {
