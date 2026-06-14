@@ -730,6 +730,7 @@
   loadProxyStatus();
 
   const COPY_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+  const COPY_ALL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/><line x1="16" y1="6" x2="16" y2="2"/><line x1="14" y1="4" x2="18" y2="4"/></svg>`;
   const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
   document.addEventListener('click', e => {
@@ -750,14 +751,17 @@
             <span id="card-arrow-${fi}">&#9660;</span>
           </div>
           <div class="file-card-body" id="card-body-${fi}">
-            ${f.entries.length ? f.entries.map(e => `
+            ${f.entries.length ? f.entries.map(e => {
+                const all = [e.email?`Email: ${e.email}`:'', e.password?`Password: ${e.password}`:'', e.license?`Licenza: ${e.license}`:'', e.key?`Key: ${e.key}`:'', e.expiry?`Scadenza: ${e.expiry}`:''].filter(Boolean).join('\n');
+                return `
               <div class="entry">
+                <div class="entry-row" style="justify-content:space-between;margin-bottom:0.4rem"><span class="entry-label">Voce</span><button class="copy-icon-btn" title="Copia tutto" data-copy="${esc(all)}">${COPY_ALL_SVG}</button></div>
                 ${e.email    ? `<div class="entry-row"><span class="entry-label">Email</span></div><div class="entry-val-wrap"><span class="entry-val">${esc(e.email)}</span><button class="copy-icon-btn" title="Copia email" data-copy="${esc(e.email)}">${COPY_SVG}</button></div>` : ''}
                 ${e.password ? `<div class="entry-row"><span class="entry-label">Password</span></div><div class="entry-val-wrap"><span class="entry-val">${esc(e.password)}</span><button class="copy-icon-btn" title="Copia password" data-copy="${esc(e.password)}">${COPY_SVG}</button></div>` : ''}
                 ${e.license  ? `<div class="entry-row"><span class="entry-label">Licenza</span></div><div class="entry-val-wrap"><span class="entry-val">${esc(e.license)}</span></div>` : ''}
                 ${e.key      ? `<div class="entry-row"><span class="entry-label">Key</span></div><div class="entry-val-wrap"><span class="entry-val ekey">${esc(e.key)}</span><button class="copy-icon-btn" title="Copia chiave" data-copy="${esc(e.key)}">${COPY_SVG}</button></div>` : ''}
                 ${e.expiry   ? `<div class="entry-row"><span class="entry-label">Scadenza</span></div><div class="entry-val-wrap"><span class="entry-val">${esc(e.expiry)}</span></div>` : ''}
-              </div>`).join('') : '<div class="entry" style="color:#475569">Nessuna voce</div>'}
+              </div>`;}).join('') : '<div class="entry" style="color:#475569">Nessuna voce</div>'}
           </div>
         </div>`).join('');
     } catch { }
