@@ -763,27 +763,49 @@
     if (delEntry) { deleteEntry(delEntry.dataset.delEntry, +delEntry.dataset.entryIdx, delEntry.dataset.card); return; }
   });
 
+  function fadeRemove(el, cb) {
+    el.style.transition = 'opacity 0.25s, transform 0.25s';
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(6px)';
+    setTimeout(() => { el.remove(); if (cb) cb(); }, 260);
+  }
+
   async function deleteFile(filename, cardIdx) {
-    await fetch(`/files/${encodeURIComponent(filename)}`, { method: 'DELETE' });
-    document.getElementById(`file-card-${cardIdx}`)?.remove();
-    if (!document.querySelector('.file-card')) {
-      document.getElementById('sidebar-content').innerHTML = '<p class="empty-sidebar">Nessun file trovato</p>';
-    }
+    const card = document.getElementById(`file-card-${cardIdx}`);
+    if (!card) return;
+    const btn = card.querySelector(`[data-del-file]`);
+    if (btn) { btn.innerHTML = '…'; btn.style.pointerEvents = 'none'; }
+    const res = await fetch(`/files/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+    if (!res.ok) { if (btn) { btn.innerHTML = TRASH_SVG; btn.style.pointerEvents = ''; } return; }
+    fadeRemove(card, () => {
+      if (!document.querySelector('.file-card'))
+        document.getElementById('sidebar-content').innerHTML = '<p class="empty-sidebar">Nessun file trovato</p>';
+    });
   }
 
   async function deleteEntry(filename, entryIdx, cardIdx) {
-    await fetch(`/files/${encodeURIComponent(filename)}/entries/${entryIdx}`, { method: 'DELETE' });
-    document.getElementById(`entry-${cardIdx}-${entryIdx}`)?.remove();
-    const body = document.getElementById(`card-body-${cardIdx}`);
-    if (body && !body.querySelector('.entry[id]')) {
-      body.innerHTML = '<div class="entry" style="color:#475569">Nessuna voce</div>';
-    }
+    const entry = document.getElementById(`entry-${cardIdx}-${entryIdx}`);
+    if (!entry) return;
+    const btn = entry.querySelector(`[data-del-entry]`);
+    if (btn) { btn.innerHTML = '…'; btn.style.pointerEvents = 'none'; }
+    const res = await fetch(`/files/${encodeURIComponent(filename)}/entries/${entryIdx}`, { method: 'DELETE' });
+    if (!res.ok) { if (btn) { btn.innerHTML = TRASH_SVG; btn.style.pointerEvents = ''; } return; }
+    fadeRemove(entry, () => {
+      const body = document.getElementById(`card-body-${cardIdx}`);
+      if (body && !body.querySelector('.entry[id]'))
+        body.innerHTML = '<div class="entry" style="color:#475569">Nessuna voce</div>';
+    });
   }
 
   async function deleteAllFiles() {
     if (!confirm('Eliminare tutti i file generati?')) return;
-    await fetch('/files', { method: 'DELETE' });
-    document.getElementById('sidebar-content').innerHTML = '<p class="empty-sidebar">Nessun file trovato</p>';
+    const res = await fetch('/files', { method: 'DELETE' });
+    if (!res.ok) return;
+    document.querySelectorAll('.file-card').forEach(c => fadeRemove(c));
+    setTimeout(() => {
+      if (!document.querySelector('.file-card'))
+        document.getElementById('sidebar-content').innerHTML = '<p class="empty-sidebar">Nessun file trovato</p>';
+    }, 300);
   }
 
   async function loadFiles() {
