@@ -765,8 +765,23 @@
 
   loadFiles();
 
+  function copyToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    return Promise.resolve();
+  }
+
   function copyIcon(btn, text) {
-    navigator.clipboard.writeText(text).then(() => {
+    copyToClipboard(text).then(() => {
       btn.innerHTML = CHECK_SVG;
       btn.classList.add('copied');
       setTimeout(() => { btn.innerHTML = COPY_SVG; btn.classList.remove('copied'); }, 1500);
@@ -774,7 +789,7 @@
   }
 
   function copyText(btn, text) {
-    navigator.clipboard.writeText(text).then(() => {
+    copyToClipboard(text).then(() => {
       btn.textContent = '✓';
       btn.classList.add('copied');
       setTimeout(() => { btn.textContent = 'Copia'; btn.classList.remove('copied'); }, 1500);
