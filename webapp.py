@@ -490,6 +490,62 @@ async def list_files():
     return result
 
 
+def _script_files() -> list[Path]:
+    return [
+        Path(p) for p in sorted(
+            glob.glob(str(BASE_DIR / "*.txt")), key=os.path.getmtime, reverse=True
+        )
+        if _SCRIPT_FILE_RE.search(Path(p).name)
+    ]
+
+
+@app.delete("/files/{filename}", dependencies=[Depends(check_auth)])
+async def delete_file(filename: str):
+    path = BASE_DIR / filename
+    if not path.resolve().parent == BASE_DIR.resolve():
+        return JSONResponse(status_code=400, content={"error": "invalid path"})
+    if not _SCRIPT_FILE_RE.search(filename):
+        return JSONResponse(status_code=400, content={"error": "not a script output file"})
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        return JSONResponse(status_code=404, content={"error": "file not found"})
+    return {"ok": True}
+
+
+@app.delete("/files/{filename}/entries/{index}", dependencies=[Depends(check_auth)])
+async def delete_entry(filename: str, index: int):
+    path = BASE_DIR / filename
+    if not path.resolve().parent == BASE_DIR.resolve():
+        return JSONResponse(status_code=400, content={"error": "invalid path"})
+    if not _SCRIPT_FILE_RE.search(filename):
+        return JSONResponse(status_code=400, content={"error": "not a script output file"})
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except FileNotFoundError:
+        return JSONResponse(status_code=404, content={"error": "file not found"})
+    blocks = [b for b in text.split(_SEPARATOR) if b.strip()]
+    if index < 0 or index >= len(blocks):
+        return JSONResponse(status_code=404, content={"error": "entry not found"})
+    blocks.pop(index)
+    new_text = (_SEPARATOR + "\n").join(b.lstrip("\n") for b in blocks)
+    if new_text.strip():
+        path.write_text(new_text, encoding="utf-8")
+    else:
+        path.unlink()
+    return {"ok": True}
+
+
+@app.delete("/files", dependencies=[Depends(check_auth)])
+async def delete_all_files():
+    for p in _script_files():
+        try:
+            p.unlink()
+        except OSError:
+            pass
+    return {"ok": True}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("webapp:app", host="0.0.0.0", port=8000, reload=False)
