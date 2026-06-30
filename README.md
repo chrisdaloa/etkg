@@ -35,11 +35,11 @@ cd etkg
 ETKG_PASSWORD=yourpassword docker compose up -d --build
 ```
 
-> **Password is optional.** If you omit `ETKG_PASSWORD=...`, the dashboard starts without authentication and is accessible to anyone who can reach port 8000. Only skip it if the server is on a private/trusted network.
+> **Password is optional.** If you omit `ETKG_PASSWORD=...`, the dashboard starts without authentication and is accessible to anyone who can reach port 8888. Only skip it if the server is on a private/trusted network.
 >
 > Without password: `docker compose up -d --build`
 
-Open `http://<SERVER-IP>:8000` in your browser.
+Open `http://<SERVER-IP>:8888` in your browser.
 
 ### Common commands
 | Task | Command |
