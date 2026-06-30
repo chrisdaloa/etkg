@@ -815,9 +815,9 @@
       if (!data.length) { el.innerHTML = '<p class="empty-sidebar">Nessun file trovato</p>'; return; }
       el.innerHTML = data.map((f, fi) => `
         <div class="file-card" id="file-card-${fi}">
-          <div class="file-card-header" onclick="toggleCard(${fi})">
+          <div class="file-card-header" onclick="toggleCard(${fi}, event)">
             <span class="fname">${esc(f.filename)}</span>
-            <div style="display:flex;align-items:center;gap:0.4rem" onclick="event.stopPropagation()">
+            <div style="display:flex;align-items:center;gap:0.4rem">
               <button class="del-icon-btn" title="Elimina file" data-del-file="${esc(f.filename)}" data-card="${fi}">${TRASH_SVG}</button>
               <span id="card-arrow-${fi}">&#9660;</span>
             </div>
@@ -845,7 +845,8 @@
     } catch { }
   }
 
-  function toggleCard(fi) {
+  function toggleCard(fi, e) {
+    if (e && e.target.closest('.del-icon-btn')) return;
     const body  = document.getElementById(`card-body-${fi}`);
     const arrow = document.getElementById(`card-arrow-${fi}`);
     const open  = body.style.display !== 'none';
