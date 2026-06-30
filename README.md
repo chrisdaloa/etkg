@@ -145,7 +145,7 @@ systemctl daemon-reload && systemctl enable --now etkg-web
 - **Per-repetition result cards** — when repeat > 1, each iteration shows its own green (success) or red (error) card with copyable fields
 - **Copy buttons** — one-click copy for log, individual fields (email / password / key) and the full result block
 - **Settings persistence** — "Save settings" writes all options to the existing `eset-keygen-config.json`; fields are pre-filled on next page load
-- **Proxy pool** — paste any proxy list URL (Webshare or other sources returning `ip:port:user:pass`); when repeat > 1, each iteration uses a different proxy automatically; URL is saved to config
+- **Proxy pool** — paste any proxy list URL (Webshare or other sources returning `ip:port:user:pass`); each proxy is health-checked against ESET on refresh and dead/blocked ones are discarded automatically; when repeat > 1, each iteration uses a different working proxy; URL is saved to config
 - **Recent files sidebar** — shows the last 5 generated `.txt` key/account files with per-field and per-entry copy buttons; refreshes automatically after each run
 - **Linux server / LXC ready** — runs headless by default; no display required
 

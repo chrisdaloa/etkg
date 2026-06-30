@@ -704,7 +704,7 @@
     const url = document.getElementById('webshare_url').value.trim();
     if (!url) { alert('Inserisci prima l\'URL Webshare'); return; }
     const statusEl = document.getElementById('proxy-status');
-    statusEl.textContent = 'Caricamento…';
+    statusEl.textContent = 'Verifica proxy…';
     try {
       const resp = await fetch('/proxies/refresh', {
         method: 'POST',
@@ -717,7 +717,7 @@
       }
       const data = await resp.json();
       const d = new Date(data.updated_at * 1000);
-      statusEl.textContent = `✓ ${data.count} proxy caricati (${d.toLocaleTimeString()})`;
+      statusEl.textContent = `✓ ${data.count}/${data.total_fetched} proxy funzionanti (${d.toLocaleTimeString()})`;
       statusEl.style.color = '#4ade80';
     } catch(e) {
       statusEl.textContent = `Errore: ${e.message}`;

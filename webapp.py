@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
 
@@ -79,6 +80,27 @@ def _fetch_proxies(url: str) -> list[str]:
         if converted:
             result.append(converted)
     return result
+
+
+def _check_proxy(proxy: str, timeout: float = 6.0) -> bool:
+    """True if the proxy can reach ESET's register page and isn't blocked."""
+    scheme, host, port, user, password = proxy.split(":")
+    proxy_url = f"{scheme}://{user}:{password}@{host}:{port}"
+    try:
+        resp = _requests.get(
+            "https://login.eset.com/Register",
+            proxies={"http": proxy_url, "https": proxy_url},
+            timeout=timeout,
+        )
+        return resp.status_code == 200 and "Service not available" not in resp.text
+    except _requests.RequestException:
+        return False
+
+
+def _filter_working_proxies(pool: list[str]) -> list[str]:
+    with ThreadPoolExecutor(max_workers=20) as pool_executor:
+        results = pool_executor.map(_check_proxy, pool)
+    return [proxy for proxy, ok in zip(pool, results) if ok]
 
 
 def _write_single_proxy(proxy: str) -> str:
@@ -220,10 +242,14 @@ async def proxies_refresh(req: ProxyRefreshRequest):
         raise HTTPException(status_code=502, detail=f"Errore nel fetch: {e}")
     if not pool:
         raise HTTPException(status_code=502, detail="Nessun proxy valido trovato nella risposta")
-    _proxy_pool = pool
+    total = len(pool)
+    working = await asyncio.get_event_loop().run_in_executor(None, _filter_working_proxies, pool)
+    if not working:
+        raise HTTPException(status_code=502, detail=f"Nessuno dei {total} proxy ricevuti è raggiungibile (probabilmente bloccati)")
+    _proxy_pool = working
     _proxy_last_updated = time.time()
     _proxy_source_url = req.url
-    return {"count": len(_proxy_pool), "updated_at": _proxy_last_updated}
+    return {"count": len(_proxy_pool), "total_fetched": total, "updated_at": _proxy_last_updated}
 
 
 @app.get("/proxies/status", dependencies=[Depends(check_auth)])
