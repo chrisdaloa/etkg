@@ -153,7 +153,30 @@ class EsetKeygen(object):
         # upd 21.10.2025
         time.sleep(0.5)
         self.__press_button_with_text(['continue', 'continua'])
-        uCE(self.driver, f"return {GET_EBAV}('input', 'data-label', 'member-add-account-owner-input-input') != null")
+        input_ready = uCE(
+            self.driver,
+            f"return {GET_EBAV}('input', 'data-label', 'member-add-account-owner-input-input') != null",
+            max_iter=90,
+            raise_exception_if_failed=False
+        )
+        if not input_ready:
+            page_details = exec_js("""
+                return {
+                    title: document.title,
+                    url: document.URL,
+                    labels: Array.from(document.querySelectorAll('[data-label]'))
+                        .map(element => element.getAttribute('data-label'))
+                        .filter(Boolean)
+                        .slice(0, 20)
+                }
+            """)
+            raise RuntimeError(
+                'ESET account-owner form did not load after 90 seconds. '
+                f"Page title: {page_details.get('title')!r}; "
+                f"URL: {page_details.get('url')!r}; "
+                f"data-labels: {page_details.get('labels', [])!r}. "
+                'The IP may be blocked, or ESET may have changed the onboarding page.'
+            )
         try:
             input_field = exec_js(f"return {GET_EBAV}('input', 'data-label', 'member-add-account-owner-input-input')")
             input_field.send_keys(dataGenerator(random.randint(6, 12)))
