@@ -198,6 +198,8 @@ class ChromeProxyExtensionManager:
                     line = line.strip()
                     if line != "":
                         proxy = line.split(':') # scheme:host:port:username:password
+                        if len(proxy) == 4: # host:port:username:password
+                            proxy.insert(0, 'http')
                         if len(proxy) == 5:
                             proxies.append(proxy)
             except:
