@@ -155,52 +155,6 @@ class EsetKeygen(object):
         logging.info(f'License uploads...')
         console_log('\nLicense uploads...', INFO, silent_mode=SILENT_MODE)
 
-        # upd 21.10.2025
-        time.sleep(0.5)
-        self.__press_button_with_text(['continue', 'continua'])
-        input_ready = uCE(
-            self.driver,
-            f"return {GET_EBAV}('input', 'data-label', 'member-add-account-owner-input-input') != null",
-            max_iter=90,
-            raise_exception_if_failed=False
-        )
-        if not input_ready:
-            page_details = exec_js("""
-                return {
-                    title: document.title,
-                    url: document.URL,
-                    labels: Array.from(document.querySelectorAll('[data-label]'))
-                        .map(element => element.getAttribute('data-label'))
-                        .filter(Boolean)
-                        .slice(0, 20)
-                }
-            """)
-            raise RuntimeError(
-                'ESET account-owner form did not load after 90 seconds. '
-                f"Page title: {page_details.get('title')!r}; "
-                f"URL: {page_details.get('url')!r}; "
-                f"data-labels: {page_details.get('labels', [])!r}. "
-                'The IP may be blocked, or ESET may have changed the onboarding page.'
-            )
-        try:
-            input_field = exec_js(f"return {GET_EBAV}('input', 'data-label', 'member-add-account-owner-input-input')")
-            input_field.send_keys(dataGenerator(random.randint(6, 12)))
-        except:
-            raise RuntimeError('Error when filling out form!!!')
-        
-        time.sleep(0.5)
-        self.__press_button_with_text(['continue', 'continua'])
-        uCE(self.driver, f"return {GET_EBAV}('span', 'data-identifier', 'ec.status.check') != null")
-        time.sleep(0.5)
-        self.__press_button_with_text(['continue', 'continua'])
-
-        uCE(self.driver, f"return {CLICK_WITH_BOOL}({GET_EBAV}('label', 'data-label', 'onboarding-members-me-option'))")
-        self.__press_button_with_text(['continue', 'continua'])
-
-        uCE(self.driver, f"return {GET_EBAV}('button', 'data-label', 'onboarding-protect-this-device-card') != null")
-        self.__press_button_with_text(['finish for now', 'termina per ora', 'finisci per ora'])
-        time.sleep(0.5)
-
         # base
         self.driver.get('https://home.eset.com/subscriptions')
         uCE(self.driver, f"return {CLICK_WITH_BOOL}({GET_EBAV}('button', 'data-label', 'license-list-open-detail-page-btn'))")
