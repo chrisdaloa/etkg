@@ -421,7 +421,18 @@ async def run(config: RunConfig):
             cwd=str(BASE_DIR),
         )
         _current_proc = proc
-        async for raw in proc.stdout:
+        while True:
+            # main.py can sit silent for a long time (e.g. Selenium stuck loading
+            # a page through a slow/dead pool proxy); without a heartbeat the idle
+            # SSE connection gets dropped by the browser/proxy, surfacing as a
+            # "network error" in the dashboard even though the script is still running.
+            try:
+                raw = await asyncio.wait_for(proc.stdout.readline(), timeout=15)
+            except asyncio.TimeoutError:
+                yield ": keep-alive\n\n"
+                continue
+            if not raw:
+                break
             line = ANSI_ESCAPE.sub("", raw.decode("utf-8", errors="replace")).rstrip()
             if line:
                 yield f"data: {line}\n\n"
