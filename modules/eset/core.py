@@ -164,16 +164,23 @@ class EsetKeygen:
         
         self.__press_button_with_text(['continue', 'continua'])
     
-        if self.mode == 'ESET HOME':
-            card_lbl = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "label[data-label='onboarding-trial-protect-card-148']")))
-        else:
-            card_lbl = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "label[data-label='onboarding-trial-protect-card-172']")))
-        
-        self.driver.execute_script('arguments[0].click();', card_lbl)
-        
+        card_id = '148' if self.mode == 'ESET HOME' else '172'
+        card_selector = f"label[data-label='onboarding-trial-protect-card-{card_id}']"
+        card_lbl = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, card_selector)))
+
         try:
-            self.__press_button_with_text(['continue', 'continua'])
-            self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")))
+            # A JS click on the label is not always registered by the page: use a real click,
+            # make sure the card is selected and retry if the flow does not move on
+            for attempt in range(3):
+                self.__select_card(card_selector)
+                self.__press_button_with_text(['continue', 'continua'])
+                try:
+                    WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")))
+                    break
+                except TimeoutException:
+                    logging.info(f'[{self.mode}] Subscription card not shown (attempt {attempt + 1}/3), retrying...')
+            else:
+                self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")))
             
             time.sleep(0.5)
             self.__press_button_with_text(['continue', 'continua'])
@@ -222,6 +229,24 @@ class EsetKeygen:
         console_log('Information successfully received!', OK)
         return license_name, license_key, license_out_date
   
+    def __select_card(self, selector: str) -> None:
+        """Select the radio card: the page listens to the click on the <input> inside the label"""
+        card = self.driver.find_element(By.CSS_SELECTOR, selector)
+        self.driver.execute_script('arguments[0].scrollIntoView({block: "center"});', card)
+        radio = card.find_element(By.CSS_SELECTOR, 'input[type="radio"]')
+        for click in (
+            lambda: self.driver.execute_script('arguments[0].click();', radio),
+            lambda: card.click(),
+            lambda: ActionChains(self.driver).move_to_element(card).click().perform(),
+        ):
+            try:
+                click()
+            except Exception:
+                continue
+            time.sleep(0.5)
+            if radio.is_selected():
+                return
+
     def __press_button_with_text(self, text: Union[str, List[str]], timeout: float = 30) -> None:
         try:
             button = WebDriverWait(self.driver, timeout).until(
