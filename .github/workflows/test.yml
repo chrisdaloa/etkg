@@ -1,8 +1,10 @@
 name: Test the project and update the test-date
 
 on:
-  schedule:
-    - cron: '0 */12 * * *'
+  # Disabled: this job only tests upstream shadowcopyrz/etkg and pushes a cosmetic
+  # README badge update every 12h; no functional reason to run automatically on this fork.
+  # schedule:
+  #   - cron: '0 */12 * * *'
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
     inputs:
