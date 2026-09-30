@@ -185,7 +185,10 @@
 <div class="layout">
 <div class="container">
   <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.2rem">
-    <h1>ESET KeyGen</h1>
+    <div style="display:flex;gap:0.6rem;align-items:baseline">
+      <h1>ESET KeyGen</h1>
+      <span id="version-badge" style="font-size:0.7rem;color:#475569;font-family:monospace"></span>
+    </div>
     <div style="display:flex;gap:1rem;align-items:center">
       <button onclick="toggleFaq()" style="background:none;border:1px solid #334155;border-radius:50%;width:1.6rem;height:1.6rem;color:#60a5fa;font-size:0.8rem;cursor:pointer;line-height:1;padding:0" title="Manuale / FAQ">?</button>
       <a href="/logout" style="font-size:0.75rem;color:#475569;text-decoration:none;" onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#475569'">Esci</a>
@@ -699,6 +702,16 @@
   }
 
   loadBrowsers().then(() => loadConfig());
+
+  async function loadVersion() {
+    try {
+      const r = await fetch('/version');
+      if (!r.ok) return;
+      const v = await r.json();
+      document.getElementById('version-badge').textContent = `${v.base} · fork build ${v.fork_build}`;
+    } catch (e) { /* version badge is non-critical */ }
+  }
+  loadVersion();
 
   async function refreshProxies() {
     const url = document.getElementById('webshare_url').value.trim();

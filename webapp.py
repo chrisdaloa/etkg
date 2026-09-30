@@ -21,6 +21,7 @@ import secrets
 ANSI_ESCAPE = re.compile(r'\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 BASE_DIR = Path(__file__).parent
 CONFIG_PATH = BASE_DIR / "eset-keygen-config.json"
+FORK_VERSION_PATH = BASE_DIR / "FORK_VERSION"
 _WEB_ONLY_KEYS = {"proxy_source_url", "use_proxy_pool"}
 _lock = asyncio.Lock()
 
@@ -226,9 +227,23 @@ class ProxyRefreshRequest(BaseModel):
 
 # ── routes ─────────────────────────────────────────────────────────────────────
 
+def get_version_info() -> dict:
+    base = "?"
+    match = re.search(r"VERSION\s*=\s*\[\s*['\"]([^'\"]+)['\"]", (BASE_DIR / "main.py").read_text(encoding="utf-8"))
+    if match:
+        base = match.group(1)
+    fork_build = FORK_VERSION_PATH.read_text(encoding="utf-8").strip() if FORK_VERSION_PATH.exists() else "0"
+    return {"base": base, "fork_build": fork_build}
+
+
 @app.get("/", response_class=HTMLResponse, dependencies=[Depends(check_auth_page)])
 async def index():
     return (BASE_DIR / "templates" / "index.html").read_text(encoding="utf-8")
+
+
+@app.get("/version", dependencies=[Depends(check_auth)])
+async def version():
+    return get_version_info()
 
 
 @app.post("/proxies/refresh", dependencies=[Depends(check_auth)])
