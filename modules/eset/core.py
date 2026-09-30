@@ -227,6 +227,15 @@ class EsetKeygen:
                 self.driver.execute_script('arguments[0].click();', button)
                 
         except TimeoutException:
+            try:
+                buttons = [
+                    (b.get_attribute('innerText') or '').strip() + (' [disabled]' if b.get_attribute('disabled') or b.get_attribute('aria-disabled') == 'true' else '')
+                    for b in self.driver.find_elements(By.TAG_NAME, 'button')
+                ]
+                logging.info(f'Button {text} not found. URL: {self.driver.current_url} | Title: {self.driver.title} | Buttons: {buttons}')
+                console_log(f'URL: {self.driver.current_url} | Buttons: {buttons}', INFO)
+            except Exception:
+                pass
             raise RuntimeError(f'Press button with text ({text}) error!!! Timeout exceeded.')
 
 class EsetProtectHubRegister:
