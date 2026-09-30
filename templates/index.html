@@ -218,12 +218,7 @@
         <label>Email API</label>
         <select id="emailapi">
           <option value="emailfake">emailfake</option>
-          <option value="inboxes">inboxes</option>
-          <option value="1secmail">1secmail</option>
-          <option value="guerrillamail">guerrillamail</option>
-          <option value="mailticking">mailticking</option>
           <option value="fakemail">fakemail</option>
-          <option value="incognitomail">incognitomail</option>
         </select>
       </div>
       <div class="field">
@@ -393,13 +388,13 @@
         <span class="faq-arrow">&#9656;</span>
       </button>
       <div class="faq-a">
-        La maggior parte delle Email API è stata bloccata da ESET. Le opzioni consigliate al momento sono:
+        La maggior parte delle Email API è stata bloccata da ESET. Il progetto a monte ne ha rimosso il supporto,
+        restano solo:
         <ul>
           <li><strong>emailfake</strong> — consigliata, funziona nella maggior parte dei casi</li>
-          <li><strong>inboxes</strong> — buona alternativa</li>
+          <li><strong>fakemail</strong> — alternativa</li>
         </ul>
         Se nessuna funziona, abilita l'opzione <em>"Usa email personalizzata (custom email API)"</em> nelle impostazioni avanzate e usa il flag <code>--custom-email-api</code>.
-        Le API <code>mailticking</code> e <code>incognitomail</code> hanno aggiunto captcha Cloudflare e non sono affidabili.
       </div>
     </div>
 

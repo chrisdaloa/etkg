@@ -33,7 +33,7 @@ _SESSION_TOKEN = secrets.token_hex(32)
 
 VALID_MODES = {"key", "account", "small-business-key", "advanced-key", "protecthub-account"}
 VALID_BROWSERS = {"auto-detect-browser", "chrome", "firefox", "waterfox", "edge"}
-VALID_EMAIL_APIS = {"guerrillamail", "1secmail", "mailticking", "fakemail", "inboxes", "emailfake", "incognitomail"}
+VALID_EMAIL_APIS = {"fakemail", "emailfake"}  # must match EMAIL_API_CLASSES in main.py
 
 BROWSER_CANDIDATES = {
     "chrome":   ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser"],
