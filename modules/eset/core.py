@@ -182,12 +182,14 @@ class EsetKeygen:
             # A JS click on the label is not always registered by the page: use a real click,
             # make sure the card is selected and retry if the flow does not move on
             for attempt in range(3):
+                self.__raise_if_eset_error()
                 self.__select_card(card_selector)
                 self.__press_button_with_text(['continue', 'continua'])
                 try:
                     WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")))
                     break
                 except TimeoutException:
+                    self.__raise_if_eset_error()
                     logging.info(f'[{self.mode}] Subscription card not shown (attempt {attempt + 1}/3), retrying...')
             else:
                 self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")))
@@ -198,7 +200,9 @@ class EsetKeygen:
 
             logging.info(f'[{self.mode}] Response successfully received!')
             console_log(f'[{self.mode}] Response successfully received!', OK)
-        except Exception:
+        except Exception as e:
+            if str(e).startswith('ESET refused'):
+                raise
             try:
                 labels = self.driver.execute_script("return Array.from(document.querySelectorAll('[data-label]')).map(e => e.dataset.label)")
                 text = self.driver.execute_script("return document.body.innerText.slice(0, 400).replace(/\\s+/g, ' ')")
@@ -239,6 +243,18 @@ class EsetKeygen:
         console_log('Information successfully received!', OK)
         return license_name, license_key, license_out_date
   
+    def __raise_if_eset_error(self) -> None:
+        """ESET answers 'Something went wrong' (home.eset.com/error) when it refuses to create the trial"""
+        if '/error' not in self.driver.current_url and not self.driver.find_elements(By.CSS_SELECTOR, "[data-label='common-error-modal']"):
+            return
+        support_id = ''
+        try:
+            support_id = self.driver.find_element(By.CSS_SELECTOR, "[data-label='common-error-modal-support-id']").text.strip()
+        except Exception:
+            pass
+        raise RuntimeError(f'ESET refused to create the trial subscription (Something went wrong){" " + support_id if support_id else ""}. '
+                           'Probably an IP/email limit: try again later, use a VPN/Proxy or change the Email API!!!')
+
     def __select_card(self, selector: str) -> None:
         """Select the radio card: the page listens to the click on the <input> inside the label"""
         card = self.driver.find_element(By.CSS_SELECTOR, selector)
