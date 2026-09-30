@@ -11,7 +11,7 @@ import logging
 import time
 
 PARSE_FAKEMAIL_INBOX = """
-let raw_inbox = Array.from(document.getElementById('schranka').children).slice(0, -3)
+let raw_inbox = Array.from(document.getElementById('schranka').children).filter(r => r.dataset.href && r.children.length >= 3)
 let inbox = []
 for(let i=0; i < raw_inbox.length; i++) {
     let id = raw_inbox[i].dataset.href
@@ -135,8 +135,14 @@ class EmailFakeAPI(WebWrapperEmailAPI):
         self.opened_mail = False
         self.inbox_url = 'https://emailfake.com'
 
+    def _check_limited(self):
+        if 'Access temporarily limited' in self.driver.title:
+            raise RuntimeError('emailfake.com temporarily blocked your IP (anti-bot limit page)! '
+                               'Wait some minutes, use a VPN/Proxy or change the Email API!!!')
+
     def _perform_init(self) -> bool:
         self.driver.get('https://emailfake.com/fake_email_generator')
+        self._check_limited()
         self.window_handle = self.driver.current_window_handle
 
         wait = WebDriverWait(self.driver, 5)
@@ -148,6 +154,7 @@ class EmailFakeAPI(WebWrapperEmailAPI):
         user, _, domain = self.email.partition('@')
         self.inbox_url = f'https://emailfake.com/{domain}/{user}' if domain else 'https://emailfake.com'
         self.driver.get(self.inbox_url)
+        self._check_limited()
         return True
 
     def get_messages(self) -> List[Dict[str, str]]:
@@ -157,6 +164,7 @@ class EmailFakeAPI(WebWrapperEmailAPI):
         # would discard incoming messages, so reload only after leaving the inbox
         if self.opened_mail or self.driver.current_url.rstrip('/') != self.inbox_url.rstrip('/'):
             self.driver.get(self.inbox_url)
+            self._check_limited()
             self.opened_mail = False
             time.sleep(2)
 
