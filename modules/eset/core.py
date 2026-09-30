@@ -182,6 +182,13 @@ class EsetKeygen:
             logging.info(f'[{self.mode}] Response successfully received!')
             console_log(f'[{self.mode}] Response successfully received!', OK)
         except Exception:
+            try:
+                labels = self.driver.execute_script("return Array.from(document.querySelectorAll('[data-label]')).map(e => e.dataset.label)")
+                text = self.driver.execute_script("return document.body.innerText.slice(0, 400).replace(/\\s+/g, ' ')")
+                logging.info(f'Request error. URL: {self.driver.current_url} | Title: {self.driver.title} | data-labels: {labels} | Text: {text}')
+                console_log(f'URL: {self.driver.current_url} | data-labels: {labels} | Text: {text}', INFO)
+            except Exception:
+                pass
             raise RuntimeError('Request sending error!!!')
 
     def getLD(self) -> Tuple[str, str, str]:
