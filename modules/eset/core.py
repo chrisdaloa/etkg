@@ -164,9 +164,19 @@ class EsetKeygen:
         
         self.__press_button_with_text(['continue', 'continua'])
     
-        card_id = '148' if self.mode == 'ESET HOME' else '172'
-        card_selector = f"label[data-label='onboarding-trial-protect-card-{card_id}']"
-        card_lbl = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, card_selector)))
+        card_ids = ['148', '172'] if self.mode == 'ESET HOME' else ['172', '148']
+        card_selector = f"label[data-label='onboarding-trial-protect-card-{card_ids[0]}']"
+        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, card_selector)))
+
+        # ESET may disable a card (e.g. the home trial): fall back to the enabled one
+        for card_id in card_ids:
+            radio = self.driver.find_elements(By.CSS_SELECTOR, f"label[data-label='onboarding-trial-protect-card-{card_id}'] input[type='radio']")
+            if radio and radio[0].is_enabled():
+                if card_id != card_ids[0]:
+                    logging.info(f'[{self.mode}] Card {card_ids[0]} is disabled, using card {card_id}')
+                    console_log(f'[{self.mode}] Card {card_ids[0]} is disabled, using card {card_id}', WARN)
+                card_selector = f"label[data-label='onboarding-trial-protect-card-{card_id}']"
+                break
 
         try:
             # A JS click on the label is not always registered by the page: use a real click,
