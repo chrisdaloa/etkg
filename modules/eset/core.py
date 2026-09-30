@@ -186,11 +186,11 @@ class EsetKeygen:
                 self.__select_card(card_selector)
                 self.__press_button_with_text(['continue', 'continua'])
                 try:
-                    WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")))
+                    WebDriverWait(self.driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")))
                     break
                 except TimeoutException:
                     self.__raise_if_eset_error()
-                    logging.info(f'[{self.mode}] Subscription card not shown (attempt {attempt + 1}/3), retrying...')
+                    self.__log_page_state(f'Subscription card not shown (attempt {attempt + 1}/3)')
             else:
                 self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")))
             
@@ -203,14 +203,23 @@ class EsetKeygen:
         except Exception as e:
             if str(e).startswith('ESET refused'):
                 raise
-            try:
-                labels = self.driver.execute_script("return Array.from(document.querySelectorAll('[data-label]')).map(e => e.dataset.label)")
-                text = self.driver.execute_script("return document.body.innerText.slice(0, 400).replace(/\\s+/g, ' ')")
-                logging.info(f'Request error. URL: {self.driver.current_url} | Title: {self.driver.title} | data-labels: {labels} | Text: {text}')
-                console_log(f'URL: {self.driver.current_url} | data-labels: {labels} | Text: {text}', INFO)
-            except Exception:
-                pass
+            self.__log_page_state('Request error')
             raise RuntimeError('Request sending error!!!')
+
+    def __log_page_state(self, reason: str) -> None:
+        try:
+            labels = self.driver.execute_script("return Array.from(document.querySelectorAll('[data-label]')).map(e => e.dataset.label)")
+            text = self.driver.execute_script("return document.body.innerText.slice(0, 400).replace(/\\s+/g, ' ')")
+            buttons = [
+                (b.get_attribute('innerText') or '').strip() + (' [disabled]' if b.get_attribute('disabled') or b.get_attribute('aria-disabled') == 'true' else '')
+                for b in self.driver.find_elements(By.TAG_NAME, 'button')
+            ]
+            checked = self.driver.execute_script("return Array.from(document.querySelectorAll('input[type=radio]')).map(e => e.id + ':' + (e.checked ? 'checked' : '') + (e.disabled ? 'disabled' : ''))")
+            msg = f'{reason}. URL: {self.driver.current_url} | Radios: {checked} | Buttons: {buttons} | data-labels: {labels} | Text: {text}'
+            logging.info(msg)
+            console_log(msg, INFO)
+        except Exception:
+            pass
 
     def getLD(self) -> Tuple[str, str, str]:
         logging.info('License uploads...')
