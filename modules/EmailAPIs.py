@@ -21,9 +21,11 @@ for(let i=0; i < raw_inbox.length; i++) {
 }
 return inbox
 """
-PARSE_EMAILFAKE_INBOX = """
+PARSE_EMAILFAKE_INBOX = r"""
 let inbox = []
-let messages = document.getElementById('email-table').children
+let table = document.getElementById('email-table')
+if (!table) return inbox
+let messages = table.children
 for (let i = 0; i < messages.length; i++)
 {
     let message = messages[i]
@@ -32,8 +34,13 @@ for (let i = 0; i < messages.length; i++)
         continue
     else if (message.hasAttribute('id') && message.id == 'mail-summary-body')
         inbox.push(['https://emailfake.com', childrens[0].children[0].children[4].innerText, childrens[0].children[0].children[7].innerText])
-    else
-        inbox.push([message, childrens[0].innerText, childrens[1].innerText])
+    else if (childrens.length >= 2)
+    {
+        // Rows are pushed live via WebSocket: the mail URL is inside the onclick attribute
+        let m = (message.getAttribute('onclick') || '').match(/loadInboxClientSide\('([^']+)'\)/)
+        let href = m ? new URL(m[1], location.origin).href : null
+        inbox.push([href || message, childrens[0].innerText, childrens[1].innerText])
+    }
 }
 return inbox
 """
@@ -126,6 +133,7 @@ class EmailFakeAPI(WebWrapperEmailAPI):
     def __init__(self, driver):
         super().__init__(driver)
         self.opened_mail = False
+        self.inbox_url = 'https://emailfake.com'
 
     def _perform_init(self) -> bool:
         self.driver.get('https://emailfake.com/fake_email_generator')
@@ -134,15 +142,23 @@ class EmailFakeAPI(WebWrapperEmailAPI):
         wait = WebDriverWait(self.driver, 5)
         email_element = wait.until(EC.presence_of_element_located((By.ID, 'email_ch_text')))
 
-        wait.until(lambda d: email_element.text.split() != '')
+        wait.until(lambda d: email_element.text.strip() != '')
 
         self.email = email_element.text.strip()
-        self.driver.get('https://emailfake.com')
+        user, _, domain = self.email.partition('@')
+        self.inbox_url = f'https://emailfake.com/{domain}/{user}' if domain else 'https://emailfake.com'
+        self.driver.get(self.inbox_url)
         return True
 
     def get_messages(self) -> List[Dict[str, str]]:
-        self.driver.get('https://emailfake.com')
         self.driver.switch_to.window(self.window_handle)
+
+        # The inbox is filled live through a WebSocket: reloading the page on every poll
+        # would discard incoming messages, so reload only after leaving the inbox
+        if self.opened_mail or self.driver.current_url.rstrip('/') != self.inbox_url.rstrip('/'):
+            self.driver.get(self.inbox_url)
+            self.opened_mail = False
+            time.sleep(2)
 
         try:
             raw_inbox = self.driver.execute_script(PARSE_EMAILFAKE_INBOX)
@@ -165,4 +181,5 @@ class EmailFakeAPI(WebWrapperEmailAPI):
             self.driver.execute_script('arguments[0].click();', mail_id)
         else:
             self.driver.get(mail_id)
+        self.opened_mail = True
         wait.until(EC.presence_of_element_located((By.ID, 'mail-summary-body')))
