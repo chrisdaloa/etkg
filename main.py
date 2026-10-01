@@ -635,8 +635,8 @@ def main(disable_exit=False):
         PROXY_ERROR_COUNTER_LIMIT += 1
         logging.critical('EXC_INFO:', exc_info=True)
         traceback_string = traceback.format_exc()
-        if str(type(E)).find('selenium') and traceback_string.find('Stacktrace:') != -1: # disabling stacktrace output
-            traceback_string = traceback_string.split('Stacktrace:', 1)[0]
+        # disabling stacktrace output (only the browser stacktrace, not the rest of the chained errors)
+        traceback_string = re.sub(r'Stacktrace:\n(?:[ \t]*(?:#\d+.*)?\n)*', '', traceback_string)
         console_log(traceback_string, ERROR)
 
     if PROXIES != [] and PROXY_ERROR_COUNTER == PROXY_ERROR_COUNTER_LIMIT:

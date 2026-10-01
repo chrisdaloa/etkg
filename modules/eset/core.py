@@ -13,6 +13,7 @@ from modules.EmailAPIs import BaseEmailAPI
 
 from typing import Optional, Tuple, Union, List
 
+import re
 import colorama
 import time
 import logging
@@ -258,7 +259,8 @@ class EsetKeygen:
             return
         support_id = ''
         try:
-            support_id = self.driver.find_element(By.CSS_SELECTOR, "[data-label='common-error-modal-support-id']").text.strip()
+            match = re.search(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', self.driver.find_element(By.TAG_NAME, 'body').text)
+            support_id = f'(support ID: {match.group()})' if match else ''
         except Exception:
             pass
         raise RuntimeError(f'ESET refused to create the trial subscription (Something went wrong){" " + support_id if support_id else ""}. '
