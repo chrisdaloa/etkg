@@ -6,7 +6,7 @@ from typing import Optional, List, Any
 import sys
 
 # ---- Quick settings [for Developers] ----
-VERSION = ['v1.5.7.1', 1571]
+VERSION = ['v1.5.7.3', 1573]
 LOGO = f"""
 ███████╗███████╗███████╗████████╗   ██╗  ██╗███████╗██╗   ██╗ ██████╗ ███████╗███╗   ██╗
 ██╔════╝██╔════╝██╔════╝╚══██╔══╝   ██║ ██╔╝██╔════╝╚██╗ ██╔╝██╔════╝ ██╔════╝████╗  ██║
@@ -30,6 +30,7 @@ DEFAULT_EMAIL_API = 'emailfake'
 EMAIL_API_CLASSES = {
     'fakemail': FakeMailAPI,
     'emailfake': EmailFakeAPI,
+    'inboxes': InboxesAPI
 }
 AVAILABLE_EMAIL_APIS = list(EMAIL_API_CLASSES.keys())
 
@@ -563,7 +564,18 @@ def main(disable_exit=False):
                     output_filename = 'ESET KEYS.txt'
                     e_type = 'ESET HOME' if args['key'] else 'SMALL BUSINESS'
                     EK_obj = EK(email_obj, DRIVER, e_type)
-                    EK_obj.sendRequestForKey()
+
+                    max_iter = 12
+                    for i in range(max_iter):
+                        EK_obj.sendRequestForKey()
+                        if EK_obj.need_resend_req:
+                            console_log(f'[{i + 1}/{max_iter}] Attempt to resend request...', WARN)
+                            logging.info(f'[{i + 1}/{max_iter}] Attempt to resend request...')
+                            time.sleep(5)
+                            continue
+                        else:
+                            break
+
                     l_name, l_key, l_out_date = EK_obj.getLD()
 
                     gen_result.update({

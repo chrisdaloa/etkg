@@ -9,7 +9,7 @@ from selenium.webdriver.common.by import By
 from modules.utils.helpers import button_with_text_is_clickable, dataGenerator
 from modules.eset.parsers import parseESETToken, parseESETProtectHubKey
 from modules.utils.logger import console_log, INFO, OK, ERROR, WARN
-from modules.EmailAPIs import BaseEmailAPI
+from modules.EmailAPIs import BaseEmailAPI, CustomEmailAPI
 
 from typing import Optional, Tuple, Union, List
 
@@ -102,7 +102,7 @@ class EsetRegister:
         raise IPBlockedException('\nESET temporarily blocked your IP, try again later!!! Try to use VPN/Proxy or try to change Email API!!!')
 
     def confirmAccount(self) -> bool:
-        if self.email_obj.class_name != 'custom':
+        if not isinstance(self.email_obj, CustomEmailAPI):
             logging.info(f'[{self.email_obj.class_name}] ESET-HOME-Token interception...')
             console_log(f'\n[{self.email_obj.class_name}] ESET-HOME-Token interception...', INFO)
 
@@ -149,7 +149,8 @@ class EsetKeygen:
         self.driver = driver
         self.mode = mode.upper()
         self.wait = WebDriverWait(self.driver, 15)
-        
+        self.need_resend_req = False
+
         if self.mode not in ['ESET HOME', 'SMALL BUSINESS']:
             raise RuntimeError('Undefined keygen mode!')
         
@@ -157,55 +158,79 @@ class EsetKeygen:
         logging.info(f'[{self.mode}] Sending request and waiting for response...')
         console_log(f'\n[{self.mode}] Sending request and waiting for response...', INFO)
 
+        if self.need_resend_req:
+            self.driver.get('https://home.eset.com')
+
         skip_button = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-label='onboarding-welcome-skip-introduction-btn']")))
         self.driver.execute_script('arguments[0].click();', skip_button)
-        
-        trial_button = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "label[data-label='onboarding-add-subscription-protect-card-trial']")))
-        self.driver.execute_script('arguments[0].click();', trial_button)
-        
-        self.__press_button_with_text(['continue', 'continua'])
-    
-        card_ids = ['148', '172'] if self.mode == 'ESET HOME' else ['172', '148']
-        card_selector = f"label[data-label='onboarding-trial-protect-card-{card_ids[0]}']"
-        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, card_selector)))
 
-        # ESET may disable a card (e.g. the home trial): fall back to the enabled one
-        for card_id in card_ids:
-            radio = self.driver.find_elements(By.CSS_SELECTOR, f"label[data-label='onboarding-trial-protect-card-{card_id}'] input[type='radio']")
-            if radio and radio[0].is_enabled():
-                if card_id != card_ids[0]:
-                    logging.info(f'[{self.mode}] Card {card_ids[0]} is disabled, using card {card_id}')
-                    console_log(f'[{self.mode}] Card {card_ids[0]} is disabled, using card {card_id}', WARN)
-                card_selector = f"label[data-label='onboarding-trial-protect-card-{card_id}']"
-                break
+        if not self.need_resend_req:
+            trial_button = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "label[data-label='onboarding-add-subscription-protect-card-trial']")))
+            self.driver.execute_script('arguments[0].click();', trial_button)
+
+            self.__press_button_with_text(['continue', 'continua'])
+
+            card_ids = ['148', '172'] if self.mode == 'ESET HOME' else ['172', '148']
+            card_selector = f"label[data-label='onboarding-trial-protect-card-{card_ids[0]}']"
+            self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, card_selector)))
+
+            # ESET may disable a card (e.g. the home trial): fall back to the enabled one
+            for card_id in card_ids:
+                radio = self.driver.find_elements(By.CSS_SELECTOR, f"label[data-label='onboarding-trial-protect-card-{card_id}'] input[type='radio']")
+                if radio and radio[0].is_enabled():
+                    if card_id != card_ids[0]:
+                        logging.info(f'[{self.mode}] Card {card_ids[0]} is disabled, using card {card_id}')
+                        console_log(f'[{self.mode}] Card {card_ids[0]} is disabled, using card {card_id}', WARN)
+                    card_selector = f"label[data-label='onboarding-trial-protect-card-{card_id}']"
+                    break
 
         try:
-            # A JS click on the label is not always registered by the page: use a real click,
-            # make sure the card is selected and retry if the flow does not move on
-            for attempt in range(3):
-                self.__raise_if_eset_error()
-                self.__select_card(card_selector)
-                self.__press_button_with_text(['continue', 'continua'])
-                try:
-                    WebDriverWait(self.driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")))
-                    break
-                except TimeoutException:
+            if not self.need_resend_req:
+                # A JS click on the label is not always registered by the page: use a real click,
+                # make sure the card is selected and retry if the flow does not move on
+                for attempt in range(3):
                     self.__raise_if_eset_error()
-                    self.__log_page_state(f'Subscription card not shown (attempt {attempt + 1}/3)')
-            else:
-                self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")))
-            
-            time.sleep(0.5)
-            self.__press_button_with_text(['continue', 'continua'])
-            self.wait.until(EC.url_to_be('https://home.eset.com/onboarding/download'))
+                    self.__select_card(card_selector)
+                    self.__press_button_with_text(['continue', 'continua'])
+                    try:
+                        WebDriverWait(self.driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")))
+                        break
+                    except TimeoutException:
+                        self.__raise_if_eset_error()
+                        self.__log_page_state(f'Subscription card not shown (attempt {attempt + 1}/3)')
 
-            logging.info(f'[{self.mode}] Response successfully received!')
-            console_log(f'[{self.mode}] Response successfully received!', OK)
+            element = self.wait.until(
+                EC.any_of(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "div[data-label='onboarding-trial-subscription-card']")),
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-label^='choose-subscription-card-']")),
+                    EC.element_to_be_clickable(((By.CSS_SELECTOR, "button[data-label='common-error-modal-dismiss-btn']")))
+                )
+            )
+
+            data_label = element.get_attribute('data-label') or ''
+
+            if data_label == 'onboarding-trial-subscription-card' or data_label.startswith('choose-subscription-card-'):
+                self.__press_button_with_text(['continue', 'continua'])
+                self.wait.until(EC.url_to_be('https://home.eset.com/onboarding/download'))
+                self.need_resend_req = False
+                logging.info(f'[{self.mode}] Response successfully received!')
+                console_log(f'[{self.mode}] Response successfully received!', OK)
+            else: # try again
+                self.driver.execute_script('arguments[0].click();', element)
+                for _ in range(10):
+                    try:
+                        try_again_button = self.driver.find_element(By.CSS_SELECTOR, "a[data-label='common-layout-login-to-myESET-btn']")
+                        self.driver.execute_script('arguments[0].click();', try_again_button)
+                        self.need_resend_req = True
+                        break
+                    except:
+                        time.sleep(0.5)
         except Exception as e:
             if str(e).startswith('ESET refused'):
                 raise
-            self.__log_page_state('Request error')
-            raise RuntimeError('Request sending error!!!')
+            if not self.need_resend_req:
+                self.__log_page_state('Request error')
+                raise RuntimeError('Request sending error!!!')
 
     def __log_page_state(self, reason: str) -> None:
         try:
@@ -409,7 +434,7 @@ class EsetProtectHubRegister:
         console_log('Successfully!', OK)
 
     def confirmAccount(self) -> None:
-        if self.email_obj.class_name != 'custom':
+        if not isinstance(self.email_obj, CustomEmailAPI):
             logging.info(f'[{self.email_obj.class_name}] ProtectHub-Token interception...')
             console_log(f'\n[{self.email_obj.class_name}] ProtectHub-Token interception...', INFO)
 

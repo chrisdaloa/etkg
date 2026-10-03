@@ -15,6 +15,7 @@ on:
         options:
         - fakemail
         - emailfake
+        - inboxes
         default: fakemail
       branch:
         description: 'Branch of etkg repo to clone'
