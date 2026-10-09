@@ -28,6 +28,7 @@ class button_with_text_is_clickable:
                 
         return False
 
+
 def dataGenerator(length, only_numbers=False):
     """generates a password by default. If only_numbers=True - phone number"""
     data = []
